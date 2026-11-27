@@ -1,4 +1,4 @@
-import { Archive, ChevronLeft, FileCode, Inbox } from 'lucide-react'
+import { Archive, ChevronLeft, FileCode, Inbox, Reply } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { AnalysisCard } from '@renderer/components/AnalysisCard'
@@ -19,6 +19,7 @@ interface MailScreenProps {
   /** Archives an inbox mail, or moves an archived mail back to the inbox. */
   onToggleArchive: (mail: MailSummary) => void
   hasTodoist: boolean
+  onReply: (mail: MailSummary) => void
   onOpenSettings: () => void
 }
 
@@ -28,6 +29,7 @@ export function MailScreen({
   onBack,
   onToggleArchive,
   hasTodoist,
+  onReply,
   onOpenSettings
 }: MailScreenProps): React.JSX.Element {
   const [detail, setDetail] = useState<MailDetail | null>(null)
@@ -61,6 +63,10 @@ export function MailScreen({
             {inArchive ? 'Archive' : 'Inbox'} <Kbd>Esc</Kbd>
           </Button>
           <span className="mx-1 h-5 w-px bg-hairline/10" />
+          <Button variant="ghost" onClick={() => onReply(mail)}>
+            <Reply />
+            Reply <Kbd>R</Kbd>
+          </Button>
           {inArchive ? (
             <Button variant="ghost" onClick={() => onToggleArchive(mail)}>
               <Inbox />

@@ -6,6 +6,19 @@ const api: EmberApi = {
   platform: process.platform,
   listAccounts: () => ipcRenderer.invoke('accounts:list'),
   addAccount: (input) => ipcRenderer.invoke('accounts:add', input),
+  updateAccount: (id, update) => ipcRenderer.invoke('accounts:update', id, update),
+  sendMail: (mail) => ipcRenderer.invoke('mail:send', mail),
+  getSenderName: () => ipcRenderer.invoke('prefs:senderName'),
+  setSenderName: (name) => ipcRenderer.invoke('prefs:setSenderName', name),
+  replySuggestions: (accountId, uid, folder) =>
+    ipcRenderer.invoke('ai:suggest', accountId, uid, folder),
+  draftReply: (request) => ipcRenderer.invoke('ai:draft', request),
+  onDraftText: (callback) => {
+    const listener = (_event: unknown, requestId: string, text: string): void =>
+      callback(requestId, text)
+    ipcRenderer.on('ai:draft:text', listener)
+    return () => ipcRenderer.removeListener('ai:draft:text', listener)
+  },
   removeAccount: (id) => ipcRenderer.invoke('accounts:remove', id),
   getStatuses: () => ipcRenderer.invoke('accounts:statuses'),
   listInbox: () => ipcRenderer.invoke('inbox:list'),

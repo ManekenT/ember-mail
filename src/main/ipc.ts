@@ -1,14 +1,32 @@
 import { ipcMain, shell } from 'electron'
 
-import { deleteAccount, listAccounts, saveAccount } from './accounts'
+import {
+  deleteAccount,
+  getAccount,
+  getPassword,
+  listAccounts,
+  rememberAddress,
+  saveAccount,
+  updateAccount
+} from './accounts'
+import { draftReply, suggestReplies } from './ai/drafts'
+import { sendViaSmtp, testSmtp } from './mail/send'
 import { testConnection } from './mail/connection'
 import type { MailManager } from './mail/manager'
 import { getSenderLogo } from './logos'
 import { Analyzer } from './ai/analyzer'
 import { addTodoistTask, findExistingTask, listDueTasks, verifyTodoistToken } from './ai/todoist'
-import { getSecret, setSecret } from './settings'
+import { getPreferences, getSecret, setPreferences, setSecret } from './settings'
 import { checkForUpdates, getUpdateState, installUpdate } from './updater'
-import type { AccountInput, AiSettings, MailAnalysis, MailFolder } from '../shared/types'
+import type {
+  AccountInput,
+  AccountUpdate,
+  AiSettings,
+  DraftRequest,
+  MailAnalysis,
+  MailFolder,
+  OutgoingMail
+} from '../shared/types'
 
 export function registerIpc(mail: MailManager): void {
   const aiSettings = (): AiSettings => ({
@@ -21,8 +39,24 @@ export function registerIpc(mail: MailManager): void {
 
   ipcMain.handle('accounts:add', async (_event, input: AccountInput) => {
     await testConnection(input)
+    if (input.smtpHost) await testSmtp(input, input.password)
     const account = saveAccount(input)
     mail.startAccount(account)
+    return account
+  })
+
+  ipcMain.handle('accounts:update', async (_event, id: string, update: AccountUpdate) => {
+    const password = update.password || getPassword(id)
+    const imapChanged = (['host', 'port', 'secure', 'user'] as const).some(
+      (field) => update[field] !== getAccount(id)[field]
+    )
+    if (imapChanged || update.password) await testConnection({ ...update, password })
+    if (update.smtpHost) await testSmtp(update, password)
+    const account = updateAccount(id, update)
+    if (imapChanged || update.password) {
+      await mail.stopAccount(id)
+      mail.startAccount(account)
+    }
     return account
   })
 
@@ -54,6 +88,61 @@ export function registerIpc(mail: MailManager): void {
   ipcMain.handle('mail:source', (_event, accountId: string, uid: number, folder?: MailFolder) =>
     mail.connection(accountId).getSource(uid, folder === 'archive' ? 'archive' : 'inbox')
   )
+
+  ipcMain.handle('prefs:senderName', () => getPreferences().senderName ?? '')
+  ipcMain.handle('prefs:setSenderName', (_event, name: string) =>
+    setPreferences({ senderName: name.trim() })
+  )
+
+  ipcMain.handle('mail:send', async (_event, outgoing: OutgoingMail) => {
+    const account = getAccount(outgoing.accountId)
+    const connection = mail.connection(outgoing.accountId)
+    const original = outgoing.replyTo
+      ? await connection.getMail(outgoing.replyTo.uid, outgoing.replyTo.folder)
+      : null
+    const raw = await sendViaSmtp(
+      account,
+      getPassword(account.id),
+      getPreferences().senderName ?? '',
+      outgoing,
+      original
+    )
+    // The mail is out; the rest is bookkeeping that shouldn't fail the send.
+    rememberAddress(account.id, outgoing.from)
+    await connection
+      .saveToSent(raw)
+      .catch((e) => console.error(`[${account.name}] saving to Sent failed`, e))
+    if (outgoing.replyTo) {
+      await connection
+        .markAnswered(outgoing.replyTo.uid, outgoing.replyTo.folder)
+        .catch((e) => console.error(`[${account.name}] marking answered failed`, e))
+    }
+  })
+
+  const claudeKey = (): string => {
+    const key = getSecret('claudeKey')
+    if (!key) throw new Error('Add your Claude API key in Settings first.')
+    return key
+  }
+
+  ipcMain.handle('ai:suggest', async (_event, accountId: string, uid: number, folder: MailFolder) =>
+    suggestReplies(claudeKey(), await mail.connection(accountId).getMail(uid, folder))
+  )
+
+  ipcMain.handle('ai:draft', async (event, request: DraftRequest) => {
+    const key = claudeKey()
+    const original = await mail.connection(request.accountId).getMail(request.uid, request.folder)
+    return draftReply(
+      key,
+      original,
+      {
+        instruction: request.instruction,
+        senderName: getPreferences().senderName ?? '',
+        from: request.from
+      },
+      (text) => event.sender.send('ai:draft:text', request.requestId, text)
+    )
+  })
 
   ipcMain.handle('settings:ai', () => aiSettings())
 

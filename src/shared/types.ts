@@ -8,7 +8,14 @@ export interface AccountInput {
   secure: boolean
   user: string
   password: string
+  smtpHost: string
+  smtpPort: number
+  /** True: TLS from the start (465). False: STARTTLS (587). */
+  smtpSecure: boolean
 }
+
+/** Changes to an account. A password is only sent when it changes. */
+export type AccountUpdate = Omit<AccountInput, 'password'> & { password?: string }
 
 /** An account as the renderer sees it. The password never leaves the main process. */
 export interface AccountInfo {
@@ -20,6 +27,12 @@ export interface AccountInfo {
   secure: boolean
   user: string
   colorIndex: number
+  /** Empty when sending isn't set up yet (accounts from before sending existed). */
+  smtpHost: string
+  smtpPort: number
+  smtpSecure: boolean
+  /** Other addresses this account has sent from (aliases on the same mailbox). */
+  addresses: string[]
 }
 
 export type AccountStatus =
@@ -108,9 +121,38 @@ export interface MailDetail {
   to: MailAddress[]
   cc: MailAddress[]
   date: string
+  replyTo: MailAddress[]
+  /** Message-ID and References headers, for threading replies. */
+  messageId: string | null
+  references: string[]
   /** Sanitized in the renderer before display. Null for text-only mails. */
   html: string | null
   text: string
+}
+
+export interface OutgoingMail {
+  accountId: string
+  /** The address to send from: the account's own or another one it may use. */
+  from: string
+  /** Comma-separated addresses, as typed. */
+  to: string
+  cc: string
+  subject: string
+  text: string
+  /** Set when this is a reply: the mail it answers. */
+  replyTo?: { uid: number; folder: MailFolder }
+}
+
+export interface DraftRequest {
+  /** Chosen by the renderer, to match onDraftText updates to this request. */
+  requestId: string
+  accountId: string
+  uid: number
+  folder: MailFolder
+  /** What the reply should say, in Tom's words; may be empty. */
+  instruction: string
+  /** The sender address the reply goes out from. */
+  from: string
 }
 
 export interface ArchivePage {
@@ -146,6 +188,7 @@ export interface EmberApi {
   platform: string
   listAccounts(): Promise<AccountInfo[]>
   addAccount(input: AccountInput): Promise<AccountInfo>
+  updateAccount(id: string, update: AccountUpdate): Promise<AccountInfo>
   removeAccount(id: string): Promise<void>
   getStatuses(): Promise<Record<string, AccountStatus>>
   listInbox(): Promise<MailSummary[]>
@@ -167,6 +210,18 @@ export interface EmberApi {
   /** Restarts into the downloaded update. */
   installUpdate(): Promise<void>
   onUpdateState(callback: (state: UpdateState) => void): () => void
+  sendMail(mail: OutgoingMail): Promise<void>
+  /** Sender name for outgoing mail ("Tom Hohendorf"), empty when not set. */
+  getSenderName(): Promise<string>
+  setSenderName(name: string): Promise<void>
+  /** Two to four short reply ideas for a mail, from Claude. */
+  replySuggestions(accountId: string, uid: number, folder: MailFolder): Promise<string[]>
+  /**
+   * Has Claude write a reply. Text arrives through onDraftText while it is written;
+   * resolves with the whole draft.
+   */
+  draftReply(request: DraftRequest): Promise<string>
+  onDraftText(callback: (requestId: string, text: string) => void): () => void
   /** The mail's raw source (headers and MIME body) as text. */
   getMailSource(accountId: string, uid: number, folder?: MailFolder): Promise<string>
   getAiSettings(): Promise<AiSettings>
