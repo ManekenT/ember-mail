@@ -1,132 +1,97 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Dark is the default theme: <html class="dark"> in index.html. */
+@custom-variant dark (&:is(.dark *));
+
 :root {
-  --bg: #fbfaf8;
-  --surface: #ffffff;
-  --sidebar: #f3f0ec;
-  --border: #e5e0da;
-  --text: #1f1b17;
-  --muted: #7a716a;
-  --accent: #e2581f;
-  --accent-soft: #fbe6dc;
-  color-scheme: light dark;
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.003 75);
+  --foreground: oklch(0.2 0.01 50);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.01 50);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.01 50);
+  --primary: oklch(0.64 0.19 42);
+  --primary-foreground: oklch(0.985 0.003 75);
+  --secondary: oklch(0.955 0.006 70);
+  --secondary-foreground: oklch(0.25 0.01 50);
+  --muted: oklch(0.955 0.006 70);
+  --muted-foreground: oklch(0.52 0.012 55);
+  --accent: oklch(0.95 0.03 55);
+  --accent-foreground: oklch(0.25 0.01 50);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.91 0.008 65);
+  --input: oklch(0.91 0.008 65);
+  --ring: oklch(0.64 0.19 42);
+  --sidebar: oklch(0.965 0.006 70);
+  --sidebar-foreground: oklch(0.2 0.01 50);
+  --sidebar-border: oklch(0.91 0.008 65);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17130f;
-    --surface: #1d1914;
-    --sidebar: #120f0c;
-    --border: #2e2822;
-    --text: #efe9e3;
-    --muted: #9b918a;
-    --accent: #ff7a3d;
-    --accent-soft: #3a2116;
+.dark {
+  --background: oklch(0.17 0.008 50);
+  --foreground: oklch(0.94 0.008 70);
+  --card: oklch(0.2 0.009 50);
+  --card-foreground: oklch(0.94 0.008 70);
+  --popover: oklch(0.2 0.009 50);
+  --popover-foreground: oklch(0.94 0.008 70);
+  --primary: oklch(0.7 0.18 45);
+  --primary-foreground: oklch(0.17 0.008 50);
+  --secondary: oklch(0.25 0.01 50);
+  --secondary-foreground: oklch(0.94 0.008 70);
+  --muted: oklch(0.25 0.01 50);
+  --muted-foreground: oklch(0.66 0.012 60);
+  --accent: oklch(0.27 0.03 45);
+  --accent-foreground: oklch(0.94 0.008 70);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 13%);
+  --ring: oklch(0.7 0.18 45);
+  --sidebar: oklch(0.145 0.007 50);
+  --sidebar-foreground: oklch(0.94 0.008 70);
+  --sidebar-border: oklch(1 0 0 / 7%);
+}
+
+@theme inline {
+  --font-sans: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    'Segoe UI Variable',
-    'Segoe UI',
-    system-ui,
-    -apple-system,
-    sans-serif;
-  font-size: 14px;
-}
-
-.app {
-  display: grid;
-  grid-template-columns: 220px 360px 1fr;
-  height: 100%;
-}
-
-.sidebar {
-  background: var(--sidebar);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  padding: 16px 12px;
-  gap: 16px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 600;
-  font-size: 16px;
-  padding: 0 8px;
-}
-
-.brand-mark {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ffd27a, var(--accent));
-  box-shadow: 0 0 10px var(--accent);
-}
-
-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-}
-
-.nav-item {
-  padding: 7px 10px;
-  border-radius: 6px;
-  color: var(--muted);
-}
-
-.nav-item.active {
-  background: var(--accent-soft);
-  color: var(--text);
-  font-weight: 500;
-}
-
-.add-account {
-  border: 1px dashed var(--border);
-  background: transparent;
-  color: var(--muted);
-  padding: 8px;
-  border-radius: 6px;
-  font: inherit;
-}
-
-.message-list {
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-}
-
-.pane-header {
-  padding: 16px;
-  font-weight: 600;
-  font-size: 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.reader {
-  display: flex;
-}
-
-.empty {
-  margin: auto;
-  color: var(--muted);
-  padding: 24px;
-  text-align: center;
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
 }

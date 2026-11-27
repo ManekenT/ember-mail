@@ -1,35 +1,28 @@
-const placeholderAccounts = ['All inboxes']
+import { useState } from 'react'
+
+import { demoMails } from '@renderer/demo-data'
+import { InboxScreen } from '@renderer/screens/InboxScreen'
+import { MailScreen } from '@renderer/screens/MailScreen'
 
 function App(): React.JSX.Element {
-  return (
-    <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true" />
-          Ember Mail
-        </div>
-        <nav>
-          {placeholderAccounts.map((name) => (
-            <div key={name} className="nav-item active">
-              {name}
-            </div>
-          ))}
-        </nav>
-        <button className="add-account" disabled>
-          + Add account
-        </button>
-      </aside>
+  const [mails, setMails] = useState(demoMails)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const openMail = mails.find((mail) => mail.id === openId)
 
-      <section className="message-list">
-        <header className="pane-header">Inbox</header>
-        <div className="empty">No accounts yet. Account setup arrives in v1.</div>
-      </section>
+  const open = (id: string): void => {
+    setMails((current) => current.map((m) => (m.id === id ? { ...m, unread: false } : m)))
+    setOpenId(id)
+  }
 
-      <main className="reader">
-        <div className="empty">Select a message to read it here.</div>
-      </main>
-    </div>
-  )
+  const archive = (id: string): void => {
+    setMails((current) => current.filter((m) => m.id !== id))
+    setOpenId(null)
+  }
+
+  if (openMail) {
+    return <MailScreen mail={openMail} onBack={() => setOpenId(null)} onArchive={archive} />
+  }
+  return <InboxScreen mails={mails} onOpen={open} />
 }
 
 export default App
