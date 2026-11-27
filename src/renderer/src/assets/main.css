@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+/* Dark is the default theme: <html class="dark"> in index.html. */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Light theme, only when chosen. Dark is the default. */
+  --radius: 0.5rem;
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(240 10% 4%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(240 10% 4%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(240 10% 4%);
+  --primary: hsl(20 85% 45%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(240 5% 96%);
+  --secondary-foreground: hsl(240 6% 10%);
+  --muted: hsl(240 5% 96%);
+  --muted-foreground: hsl(240 4% 46%);
+  --accent: hsl(240 5% 96%);
+  --accent-foreground: hsl(240 6% 10%);
+  --destructive: hsl(0 72% 51%);
+  --border: hsl(240 6% 90%);
+  --input: hsl(240 6% 90%);
+  --ring: hsl(20 85% 45%);
+  --ember: hsl(20 85% 45%);
+  --sidebar: hsl(240 5% 98%);
+  --sidebar-foreground: hsl(240 10% 4%);
+  --sidebar-border: hsl(240 6% 90%);
+  --account-1: hsl(176 55% 48%);
+  --account-2: hsl(220 80% 66%);
+  --account-3: hsl(100 45% 55%);
+  --live: hsl(142 60% 50%);
+}
+
+/* Tokens from the Ember Mail mockup (zinc-dark base, ember accent). */
+.dark {
+  --background: hsl(240 10% 4%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(240 8% 6.5%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(240 8% 6.5%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(22 92% 58%);
+  --primary-foreground: hsl(20 40% 7%);
+  --secondary: hsl(240 4% 16%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(240 4% 16%);
+  --muted-foreground: hsl(240 5% 65%);
+  --accent: hsl(240 4% 14%);
+  --accent-foreground: hsl(0 0% 98%);
+  --destructive: hsl(0 63% 50%);
+  --border: hsl(240 4% 16%);
+  --input: hsl(240 4% 18%);
+  --ring: hsl(22 92% 58%);
+  --ember: hsl(22 95% 64%);
+  --sidebar: hsl(240 10% 4%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-border: hsl(240 4% 16%);
+}
+
+@theme inline {
+  --font-sans: 'Geist Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --color-ember: var(--ember);
+  --color-account-1: var(--account-1);
+  --color-account-2: var(--account-2);
+  --color-account-3: var(--account-3);
+  --color-live: var(--live);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+}
