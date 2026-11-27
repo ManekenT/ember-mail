@@ -12,7 +12,7 @@ interface InboxScreenProps {
 export function InboxScreen({ mails, onOpen }: InboxScreenProps): React.JSX.Element {
   return (
     <div className="flex h-full">
-      <aside className="flex w-60 shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar px-3 py-5 text-sidebar-foreground">
+      <aside className="flex w-[232px] shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar px-3 py-5 text-sidebar-foreground">
         <div className="flex items-center gap-2.5 px-3 text-base font-semibold">
           <span
             aria-hidden="true"
@@ -33,7 +33,7 @@ export function InboxScreen({ mails, onOpen }: InboxScreenProps): React.JSX.Elem
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-baseline justify-between px-10 pt-8 pb-4">
+        <header className="flex items-baseline justify-between px-10 pt-7 pb-4">
           <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
           <span className="text-sm text-muted-foreground">{mails.length} mails</span>
         </header>
@@ -57,12 +57,17 @@ export function InboxScreen({ mails, onOpen }: InboxScreenProps): React.JSX.Elem
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-4">
-                      <span className={cn('truncate', mail.unread && 'font-semibold')}>
+                      <span className={cn('truncate text-[15px]', mail.unread && 'font-semibold')}>
                         {mail.from}
                       </span>
                       <span className="shrink-0 text-xs text-muted-foreground">{mail.date}</span>
                     </span>
-                    <span className={cn('mt-0.5 block truncate', mail.unread && 'font-medium')}>
+                    <span
+                      className={cn(
+                        'mt-0.5 block truncate text-[15px]',
+                        mail.unread && 'font-medium'
+                      )}
+                    >
                       {mail.subject}
                     </span>
                     <span className="mt-0.5 block truncate text-sm text-muted-foreground">

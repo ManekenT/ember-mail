@@ -9,7 +9,7 @@ on the phone. Both work on the same IMAP mailboxes, so actions sync both ways.
 ## Stack
 
 - Electron + React + TypeScript, built with [electron-vite](https://electron-vite.org)
-- Tailwind CSS v4 + [shadcn/ui](https://ui.shadcn.com) (add components with `npx shadcn@latest add <name>`), dark theme by default
+- Tailwind CSS v4 + [shadcn/ui](https://ui.shadcn.com) (add components with `npx shadcn@latest add <name>`; if a new component imports `cn` from `"cn"`, change it to `@renderer/lib/utils` and don't keep the `cn` npm package), dark theme by default, Geist font
 - Windows installer via electron-builder (NSIS)
 
 ## Development

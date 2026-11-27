@@ -23,15 +23,15 @@ export function MailScreen({ mail, onBack, onArchive }: MailScreenProps): React.
         </Button>
       </header>
 
-      <article className="mx-auto w-full max-w-3xl flex-1 overflow-y-auto px-10 py-10">
-        <h1 className="text-2xl font-semibold tracking-tight">{mail.subject}</h1>
+      <article className="mx-auto w-full max-w-[760px] flex-1 overflow-y-auto px-10 py-10">
+        <h1 className="text-[28px] font-semibold tracking-tight">{mail.subject}</h1>
         <div className="mt-3 flex items-baseline justify-between text-sm text-muted-foreground">
           <span>
             <span className="font-medium text-foreground">{mail.from}</span> · {mail.account}
           </span>
           <span>{mail.date}</span>
         </div>
-        <div className="mt-8 leading-relaxed whitespace-pre-line">{mail.body}</div>
+        <div className="mt-8 text-[15px] leading-7 whitespace-pre-line">{mail.body}</div>
       </article>
     </div>
   )

@@ -1,60 +1,76 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 
 /* Dark is the default theme: <html class="dark"> in index.html. */
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(0.985 0.003 75);
-  --foreground: oklch(0.2 0.01 50);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.01 50);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.01 50);
-  --primary: oklch(0.64 0.19 42);
-  --primary-foreground: oklch(0.985 0.003 75);
-  --secondary: oklch(0.955 0.006 70);
-  --secondary-foreground: oklch(0.25 0.01 50);
-  --muted: oklch(0.955 0.006 70);
-  --muted-foreground: oklch(0.52 0.012 55);
-  --accent: oklch(0.95 0.03 55);
-  --accent-foreground: oklch(0.25 0.01 50);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.008 65);
-  --input: oklch(0.91 0.008 65);
-  --ring: oklch(0.64 0.19 42);
-  --sidebar: oklch(0.965 0.006 70);
-  --sidebar-foreground: oklch(0.2 0.01 50);
-  --sidebar-border: oklch(0.91 0.008 65);
+  /* Light theme, only when chosen. Dark is the default. */
+  --radius: 0.5rem;
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(240 10% 4%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(240 10% 4%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(240 10% 4%);
+  --primary: hsl(20 85% 45%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(240 5% 96%);
+  --secondary-foreground: hsl(240 6% 10%);
+  --muted: hsl(240 5% 96%);
+  --muted-foreground: hsl(240 4% 46%);
+  --accent: hsl(240 5% 96%);
+  --accent-foreground: hsl(240 6% 10%);
+  --destructive: hsl(0 72% 51%);
+  --border: hsl(240 6% 90%);
+  --input: hsl(240 6% 90%);
+  --ring: hsl(20 85% 45%);
+  --ember: hsl(20 85% 45%);
+  --sidebar: hsl(240 5% 98%);
+  --sidebar-foreground: hsl(240 10% 4%);
+  --sidebar-border: hsl(240 6% 90%);
+  --account-1: hsl(176 55% 48%);
+  --account-2: hsl(220 80% 66%);
+  --account-3: hsl(100 45% 55%);
+  --live: hsl(142 60% 50%);
 }
 
+/* Tokens from the Ember Mail mockup (zinc-dark base, ember accent). */
 .dark {
-  --background: oklch(0.17 0.008 50);
-  --foreground: oklch(0.94 0.008 70);
-  --card: oklch(0.2 0.009 50);
-  --card-foreground: oklch(0.94 0.008 70);
-  --popover: oklch(0.2 0.009 50);
-  --popover-foreground: oklch(0.94 0.008 70);
-  --primary: oklch(0.7 0.18 45);
-  --primary-foreground: oklch(0.17 0.008 50);
-  --secondary: oklch(0.25 0.01 50);
-  --secondary-foreground: oklch(0.94 0.008 70);
-  --muted: oklch(0.25 0.01 50);
-  --muted-foreground: oklch(0.66 0.012 60);
-  --accent: oklch(0.27 0.03 45);
-  --accent-foreground: oklch(0.94 0.008 70);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 13%);
-  --ring: oklch(0.7 0.18 45);
-  --sidebar: oklch(0.145 0.007 50);
-  --sidebar-foreground: oklch(0.94 0.008 70);
-  --sidebar-border: oklch(1 0 0 / 7%);
+  --background: hsl(240 10% 4%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(240 8% 6.5%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(240 8% 6.5%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(22 92% 58%);
+  --primary-foreground: hsl(20 40% 7%);
+  --secondary: hsl(240 4% 16%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(240 4% 16%);
+  --muted-foreground: hsl(240 5% 65%);
+  --accent: hsl(240 4% 14%);
+  --accent-foreground: hsl(0 0% 98%);
+  --destructive: hsl(0 63% 50%);
+  --border: hsl(240 4% 16%);
+  --input: hsl(240 4% 18%);
+  --ring: hsl(22 92% 58%);
+  --ember: hsl(22 95% 64%);
+  --sidebar: hsl(240 10% 4%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-border: hsl(240 4% 16%);
 }
 
 @theme inline {
-  --font-sans: 'Segoe UI Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-sans: 'Geist Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
+  --color-ember: var(--ember);
+  --color-account-1: var(--account-1);
+  --color-account-2: var(--account-2);
+  --color-account-3: var(--account-3);
+  --color-live: var(--live);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
