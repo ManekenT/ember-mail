@@ -1,6 +1,7 @@
 import { Archive, Inbox, Plus, Trash2 } from 'lucide-react'
 
 import { UpdateButton } from '@renderer/components/UpdateButton'
+import { useUpdates } from '@renderer/hooks/useUpdates'
 
 import { Button } from '@renderer/components/ui/button'
 import { accountDot } from '@renderer/lib/format'
@@ -30,6 +31,7 @@ export function Sidebar({
   onAddAccount,
   onRemoveAccount
 }: SidebarProps): React.JSX.Element {
+  const updates = useUpdates()
   const unread = (accountId: string): number =>
     inbox.filter((m) => m.unread && (accountId === 'all' || m.accountId === accountId)).length
 
@@ -106,10 +108,15 @@ export function Sidebar({
         </NavItem>
       </nav>
 
-      <div className="mt-auto grid gap-3">
-        <UpdateButton />
-        <div className="border-t border-hairline/[.07] pt-3">
+      <div className="mt-auto grid grid-cols-[minmax(0,1fr)] gap-3">
+        {updates && <UpdateButton state={updates} />}
+        <div className="flex items-center gap-2 border-t border-hairline/[.07] pt-3">
           <StatusLine accounts={accounts} statuses={statuses} />
+          {updates && (
+            <span className="ml-auto shrink-0 rounded-full border border-hairline/10 bg-hairline/[.04] px-2 py-px text-[11px] text-muted-foreground tabular-nums">
+              v{updates.currentVersion}
+            </span>
+          )}
         </div>
       </div>
     </aside>
@@ -166,7 +173,7 @@ function StatusLine({
   let text = 'No accounts yet'
   if (total > 0 && live === total) {
     dot = 'bg-live shadow-[0_0_0_3px_color-mix(in_oklab,var(--live)_20%,transparent)]'
-    text = `Live · ${total} ${total === 1 ? 'account' : 'accounts'} connected`
+    text = `Live · ${total} ${total === 1 ? 'account' : 'accounts'}`
   } else if (failing > 0) {
     dot = 'bg-destructive'
     text = `${failing} of ${total} ${total === 1 ? 'account' : 'accounts'} not connected`
@@ -176,9 +183,9 @@ function StatusLine({
   }
 
   return (
-    <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+    <div className="flex min-w-0 items-center gap-2 px-1 text-xs text-muted-foreground">
       <span className={cn('size-2 shrink-0 rounded-full', dot)} />
-      {text}
+      <span className="truncate">{text}</span>
     </div>
   )
 }
