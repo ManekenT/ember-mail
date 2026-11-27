@@ -3,7 +3,9 @@ import { ipcMain, shell } from 'electron'
 import { deleteAccount, listAccounts, saveAccount } from './accounts'
 import { testConnection } from './mail/connection'
 import type { MailManager } from './mail/manager'
-import type { AccountInput } from '../shared/types'
+import { getSenderLogo } from './logos'
+import { checkForUpdates, getUpdateState, installUpdate } from './updater'
+import type { AccountInput, MailFolder } from '../shared/types'
 
 export function registerIpc(mail: MailManager): void {
   ipcMain.handle('accounts:list', () => listAccounts())
@@ -23,8 +25,12 @@ export function registerIpc(mail: MailManager): void {
   ipcMain.handle('accounts:statuses', () => mail.statuses())
   ipcMain.handle('inbox:list', () => mail.inbox())
 
-  ipcMain.handle('mail:get', (_event, accountId: string, uid: number) =>
-    mail.connection(accountId).getMail(uid)
+  ipcMain.handle('archive:list', (_event, limit: number, query?: string) =>
+    mail.archive(Math.min(Math.max(1, limit), 2000), query?.trim() || undefined)
+  )
+
+  ipcMain.handle('mail:get', (_event, accountId: string, uid: number, folder?: MailFolder) =>
+    mail.connection(accountId).getMail(uid, folder === 'archive' ? 'archive' : 'inbox')
   )
 
   ipcMain.handle('mail:archive', async (_event, accountId: string, uid: number) => {
@@ -32,9 +38,15 @@ export function registerIpc(mail: MailManager): void {
     return result.archivedUid
   })
 
-  ipcMain.handle('mail:undoArchive', (_event, accountId: string, archivedUid: number) =>
-    mail.connection(accountId).undoArchive(archivedUid)
+  ipcMain.handle('mail:moveToInbox', (_event, accountId: string, archivedUid: number) =>
+    mail.connection(accountId).moveToInbox(archivedUid)
   )
+
+  ipcMain.handle('logos:get', (_event, address: string) => getSenderLogo(address))
+
+  ipcMain.handle('updates:state', () => getUpdateState())
+  ipcMain.handle('updates:check', () => checkForUpdates())
+  ipcMain.handle('updates:install', () => installUpdate())
 
   ipcMain.handle('shell:openExternal', async (_event, url: string) => {
     if (/^(https?|mailto):/i.test(url)) await shell.openExternal(url)

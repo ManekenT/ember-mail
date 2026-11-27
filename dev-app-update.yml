@@ -1,0 +1,5 @@
+# Lets `npm run dev` check GitHub Releases for updates (installing needs the installed app).
+provider: github
+owner: ManekenT
+repo: ember-mail
+updaterCacheDirName: ember-mail-updater

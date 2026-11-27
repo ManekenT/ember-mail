@@ -3,29 +3,41 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AddAccountDialog } from '@renderer/components/AddAccountDialog'
 import { Sidebar } from '@renderer/components/Sidebar'
 import { Toast, type ToastMessage } from '@renderer/components/Toast'
+import { useArchive } from '@renderer/hooks/useArchive'
 import { useMailbox } from '@renderer/hooks/useMailbox'
 import { InboxScreen } from '@renderer/screens/InboxScreen'
 import { cleanError } from '@renderer/lib/errors'
 import { MailScreen } from '@renderer/screens/MailScreen'
-import type { AccountInfo, MailSummary } from '../../shared/types'
+import type { AccountInfo, MailFolder, MailSummary } from '../../shared/types'
 
 function App(): React.JSX.Element {
   const mailbox = useMailbox()
   const { accounts, inbox, hide, refresh } = mailbox
 
+  const [folder, setFolder] = useState<MailFolder>('inbox')
   const [selected, setSelected] = useState('all')
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [focusKey, setFocusKey] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [toast, setToast] = useState<ToastMessage | null>(null)
 
+  const archived = useArchive(folder === 'archive')
+  const { remove: removeArchived, reload: reloadArchived } = archived
+  const source = folder === 'archive' ? archived.mails : inbox
+
   const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts])
   const visible = useMemo(
-    () => inbox.filter((m) => selected === 'all' || m.accountId === selected),
-    [inbox, selected]
+    () => source.filter((m) => selected === 'all' || m.accountId === selected),
+    [source, selected]
   )
-  const openMail = openKey ? (inbox.find((m) => m.key === openKey) ?? null) : null
-  const title = selected === 'all' ? 'All inboxes' : (accountById.get(selected)?.name ?? 'Inbox')
+  const openMail = openKey ? (source.find((m) => m.key === openKey) ?? null) : null
+  const accountName = selected === 'all' ? null : (accountById.get(selected)?.name ?? null)
+  const title =
+    folder === 'archive'
+      ? accountName
+        ? `${accountName} · Archive`
+        : 'Archive'
+      : (accountName ?? 'All inboxes')
 
   const showToast = useCallback((text: string, onUndo?: () => void) => {
     setToast({ id: Date.now(), text, onUndo })
@@ -39,13 +51,20 @@ function App(): React.JSX.Element {
 
   const back = useCallback(() => setOpenKey(null), [])
 
-  const archive = useCallback(
-    async (mail: MailSummary) => {
-      // Move focus to the next mail, like Spark; archiving an open mail returns to the list.
+  /** Like Spark: focus moves to the next mail, and a mail that was open closes. */
+  const stepPast = useCallback(
+    (mail: MailSummary) => {
       const index = visible.findIndex((m) => m.key === mail.key)
       const next = visible[index + 1] ?? visible[index - 1] ?? null
       setFocusKey(next?.key ?? null)
       if (openKey === mail.key) setOpenKey(null)
+    },
+    [visible, openKey]
+  )
+
+  const archive = useCallback(
+    async (mail: MailSummary) => {
+      stepPast(mail)
       hide(mail.key)
 
       const account = accountById.get(mail.accountId)
@@ -56,7 +75,7 @@ function App(): React.JSX.Element {
             ? undefined
             : () => {
                 window.api
-                  .undoArchive(mail.accountId, archivedUid)
+                  .moveToInbox(mail.accountId, archivedUid)
                   .then(() => showToast('Moved back to the inbox'))
                   .catch((e: Error) => showToast(cleanError(e)))
               }
@@ -66,7 +85,42 @@ function App(): React.JSX.Element {
         void refresh()
       }
     },
-    [visible, openKey, hide, accountById, showToast, refresh]
+    [stepPast, hide, accountById, showToast, refresh]
+  )
+
+  const moveToInbox = useCallback(
+    async (mail: MailSummary) => {
+      stepPast(mail)
+      removeArchived(mail.key)
+
+      const account = accountById.get(mail.accountId)
+      try {
+        const inboxUid = await window.api.moveToInbox(mail.accountId, mail.uid)
+        const undo =
+          inboxUid === null
+            ? undefined
+            : () => {
+                window.api
+                  .archiveMail(mail.accountId, inboxUid)
+                  .then(() => {
+                    showToast('Archived again')
+                    reloadArchived()
+                  })
+                  .catch((e: Error) => showToast(cleanError(e)))
+              }
+        showToast(`Moved to ${account?.name ?? 'account'} › Inbox`, undo)
+      } catch (e) {
+        showToast(cleanError(e as Error))
+        reloadArchived()
+      }
+    },
+    [stepPast, removeArchived, reloadArchived, accountById, showToast]
+  )
+
+  /** E: archive in the inbox, move back to the inbox in the archive. */
+  const toggleArchive = useCallback(
+    (mail: MailSummary) => void (mail.folder === 'archive' ? moveToInbox(mail) : archive(mail)),
+    [archive, moveToInbox]
   )
 
   const removeAccount = useCallback(
@@ -84,15 +138,16 @@ function App(): React.JSX.Element {
   useEffect(
     () =>
       window.api.onOpenMail((accountId, uid) => {
+        setFolder('inbox')
         setSelected('all')
-        const key = `${accountId}:${uid}`
+        const key = `${accountId}:inbox:${uid}`
         setOpenKey(key)
         setFocusKey(key)
       }),
     []
   )
 
-  // Keyboard: J/K move, Enter open, Esc back, E archive.
+  // Keyboard: J/K move, Enter open, Esc back, E archive (or move back to the inbox).
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement
@@ -111,13 +166,13 @@ function App(): React.JSX.Element {
         const prev = visible[index - 1]
         if (prev) (openKey ? open : (m: MailSummary) => setFocusKey(m.key))(prev)
       } else if (key === 'enter' && !openKey && index >= 0) open(visible[index])
-      else if (key === 'e' && index >= 0) void archive(visible[index])
+      else if (key === 'e' && index >= 0) toggleArchive(visible[index])
       else return
       event.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [addOpen, openKey, focusKey, visible, open, back, archive])
+  }, [addOpen, openKey, focusKey, visible, open, back, toggleArchive])
 
   return (
     <div className="flex h-full">
@@ -125,7 +180,14 @@ function App(): React.JSX.Element {
         accounts={accounts}
         statuses={mailbox.statuses}
         inbox={inbox}
+        folder={folder}
         selected={selected}
+        onSelectFolder={(next) => {
+          setFolder(next)
+          setSelected('all')
+          setOpenKey(null)
+          setFocusKey(null)
+        }}
         onSelect={(id) => {
           setSelected(id)
           setOpenKey(null)
@@ -146,17 +208,21 @@ function App(): React.JSX.Element {
             total: visible.length
           }}
           onBack={back}
-          onArchive={(m) => void archive(m)}
+          onToggleArchive={toggleArchive}
         />
       ) : (
         <InboxScreen
           title={title}
+          folder={folder}
           mails={visible}
           accounts={accounts}
-          loaded={mailbox.loaded}
+          loaded={
+            folder === 'archive' ? !archived.loading || archived.mails.length > 0 : mailbox.loaded
+          }
+          archive={folder === 'archive' ? archived : undefined}
           focusKey={focusKey}
           onOpen={open}
-          onArchive={(m) => void archive(m)}
+          onToggleArchive={toggleArchive}
           onAddAccount={() => setAddOpen(true)}
         />
       )}

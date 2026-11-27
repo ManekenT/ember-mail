@@ -35,6 +35,9 @@
   --account-2: hsl(220 80% 66%);
   --account-3: hsl(100 45% 55%);
   --live: hsl(142 60% 50%);
+  /* Behind sender logos: light, so dark logos with transparency stay visible. */
+  --logo-tile: hsl(0 0% 100%);
+  --logo-ring: hsl(240 6% 90%);
 }
 
 /* Tokens from the Ember Mail mockup (zinc-dark base, ember accent). */
@@ -61,6 +64,8 @@
   --sidebar: hsl(240 10% 4%);
   --sidebar-foreground: hsl(0 0% 98%);
   --sidebar-border: hsl(240 4% 16%);
+  --logo-tile: hsl(0 0% 96%);
+  --logo-ring: hsl(0 0% 100% / 0.08);
 }
 
 @theme inline {
@@ -71,6 +76,8 @@
   --color-account-2: var(--account-2);
   --color-account-3: var(--account-3);
   --color-live: var(--live);
+  --color-logo-tile: var(--logo-tile);
+  --color-logo-ring: var(--logo-ring);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

@@ -39,6 +39,13 @@ export function dayGroup(iso: string, now = new Date()): string {
   return 'Earlier'
 }
 
+/** "Today", "Yesterday", then the month: "November 2026". For the archive, which goes far back. */
+export function monthGroup(iso: string, now = new Date()): string {
+  const group = dayGroup(iso, now)
+  if (group !== 'Earlier') return group
+  return new Date(iso).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+}
+
 /** "09:41" today, "Thu" this week, "12 Nov" this year, else "12 Nov 2025". */
 export function shortTime(iso: string, now = new Date()): string {
   const date = new Date(iso)

@@ -1,15 +1,19 @@
-import { Inbox, Plus, Trash2 } from 'lucide-react'
+import { Archive, Inbox, Plus, Trash2 } from 'lucide-react'
+
+import { UpdateButton } from '@renderer/components/UpdateButton'
 
 import { Button } from '@renderer/components/ui/button'
 import { accountDot } from '@renderer/lib/format'
 import { cn } from '@renderer/lib/utils'
-import type { AccountInfo, AccountStatus, MailSummary } from '../../../shared/types'
+import type { AccountInfo, AccountStatus, MailFolder, MailSummary } from '../../../shared/types'
 
 interface SidebarProps {
   accounts: AccountInfo[]
   statuses: Record<string, AccountStatus>
   inbox: MailSummary[]
+  folder: MailFolder
   selected: string
+  onSelectFolder: (folder: MailFolder) => void
   onSelect: (accountId: string) => void
   onAddAccount: () => void
   onRemoveAccount: (account: AccountInfo) => void
@@ -19,7 +23,9 @@ export function Sidebar({
   accounts,
   statuses,
   inbox,
+  folder,
   selected,
+  onSelectFolder,
   onSelect,
   onAddAccount,
   onRemoveAccount
@@ -31,10 +37,20 @@ export function Sidebar({
     <aside className="flex min-h-0 w-[232px] shrink-0 flex-col gap-5 overflow-auto border-r bg-card px-3 py-3">
       <nav className="grid gap-0.5">
         <div className="mb-1 px-2.5 text-xs font-medium text-muted-foreground">Mailboxes</div>
-        <NavItem active={selected === 'all'} onClick={() => onSelect('all')}>
+        <NavItem
+          active={folder === 'inbox' && selected === 'all'}
+          onClick={() => onSelectFolder('inbox')}
+        >
           <Inbox className="size-4" />
           All inboxes
           <Count value={unread('all')} />
+        </NavItem>
+        <NavItem
+          active={folder === 'archive' && selected === 'all'}
+          onClick={() => onSelectFolder('archive')}
+        >
+          <Archive className="size-4" />
+          Archive
         </NavItem>
       </nav>
 
@@ -85,7 +101,10 @@ export function Sidebar({
         </NavItem>
       </nav>
 
-      <StatusLine accounts={accounts} statuses={statuses} />
+      <div className="mt-auto grid gap-2 border-t pt-3">
+        <UpdateButton />
+        <StatusLine accounts={accounts} statuses={statuses} />
+      </div>
     </aside>
   )
 }
@@ -145,7 +164,7 @@ function StatusLine({
   }
 
   return (
-    <div className="mt-auto flex items-center gap-2 border-t px-1 pt-3 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
       <span className={cn('size-2 shrink-0 rounded-full', dot)} />
       {text}
     </div>
