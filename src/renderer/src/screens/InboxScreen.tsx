@@ -1,4 +1,4 @@
-import { Archive, CalendarDays, Inbox, LoaderCircle, Search, X } from 'lucide-react'
+import { Archive, CalendarDays, Inbox, LoaderCircle, Search, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 import { Avatar } from '@renderer/components/Avatar'
@@ -24,6 +24,8 @@ interface InboxScreenProps {
   /** Archives an inbox mail, or moves an archived mail back to the inbox. */
   onToggleArchive: (mail: MailSummary) => void
   onAddAccount: () => void
+  /** Shown in the inbox when Claude is set up. */
+  onCleanInbox?: () => void
 }
 
 /** The mail list, for the inboxes and for the archive. */
@@ -37,7 +39,8 @@ export function InboxScreen({
   focusKey,
   onOpen,
   onToggleArchive,
-  onAddAccount
+  onAddAccount,
+  onCleanInbox
 }: InboxScreenProps): React.JSX.Element {
   const inArchive = folder === 'archive'
   const group = inArchive ? monthGroup : dayGroup
@@ -97,6 +100,12 @@ export function InboxScreen({
                 </button>
               )}
             </div>
+          )}
+          {!inArchive && onCleanInbox && mails.length > 0 && (
+            <Button variant="outline" size="sm" className="ml-auto" onClick={onCleanInbox}>
+              <Sparkles className="text-primary" />
+              Clean inbox
+            </Button>
           )}
         </header>
 

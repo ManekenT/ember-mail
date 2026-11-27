@@ -13,7 +13,7 @@ const RETRY_AFTER_MS = 10 * 60_000
 /** Analyses are kept for mails that were archived too; the oldest go beyond this many. */
 const MAX_STORED = 5_000
 /** Raise when the prompt or output changes, so stored analyses are redone. */
-const ANALYSIS_VERSION = 2
+const ANALYSIS_VERSION = 3
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
 const CATEGORIES: MailCategory[] = [
@@ -59,12 +59,21 @@ Fields:
 - urgency: "urgent" only when Tom must act within about two days or something real is at stake (payment due, account locked, appointment changed, a person waiting on a time-critical answer). "important" for mail from real people that expects a reply, or anything with consequences that isn't time-critical. Everything else, including all newsletters, promotions and automated notifications without consequences, is "none". Be conservative: most mail is "none".
 - urgency_reason: a few words on why, when urgency is not "none"; otherwise null.
 - dates: concrete dates in the mail that Tom might want in his task list: events and appointments (kind "event"), deadlines to act by (kind "deadline"), and when an offer, voucher, code or the mail's whole point runs out (kind "expiry"). Give each a short title that works as a task name ("Dentist appointment", "Pay invoice 2026-114", "Voucher expires"). Use YYYY-MM-DD and, if a time is given, HH:MM in 24-hour form, else null. Take the year from the mail whenever it states one, and never assume the current year: a date can be a year or more away. When no year is given, use the next occurrence after the mail's date. Set weekday to the weekday the mail itself names for that date (lowercase English, e.g. "saturday"), or "none" if it names none. Resolve relative dates ("tomorrow", "next Friday") against the mail's date. Leave out dates in the past, the mail's own send date, and vague ones without a day. Most mails have none.
-- expires_on: the day after which the whole mail is no longer useful (an event that has passed, an offer that ran out, a delivery that arrived, a one-time code), as YYYY-MM-DD; null when it stays relevant or you can't tell.`
+- expires_on: the day after which the whole mail is no longer useful (an event that has passed, an offer that ran out, a delivery that arrived, a one-time code), as YYYY-MM-DD; null when it stays relevant or you can't tell.
+- disposable: true only when the mail has no lasting value once read: promotions and ads, newsletters, automated notifications and status updates (shipping, sign-ins, social media), one-time codes. Mail from a real person, invoices, contracts, receipts, tickets, bookings, account or legal information, and anything Tom may need to look up later are false. When unsure, false.`
 
 const SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['summary', 'category', 'urgency', 'urgency_reason', 'dates', 'expires_on'],
+  required: [
+    'summary',
+    'category',
+    'urgency',
+    'urgency_reason',
+    'dates',
+    'expires_on',
+    'disposable'
+  ],
   properties: {
     summary: { type: 'string' },
     category: { type: 'string', enum: CATEGORIES },
@@ -86,7 +95,8 @@ const SCHEMA = {
         }
       }
     },
-    expires_on: { type: ['string', 'null'] }
+    expires_on: { type: ['string', 'null'] },
+    disposable: { type: 'boolean' }
   }
 }
 
@@ -275,6 +285,7 @@ function validate(raw: {
     kind: MailDate['kind']
   }>
   expires_on: string | null
+  disposable: boolean
 }): StoredFields {
   const today = localDay(new Date())
   return {
@@ -293,7 +304,8 @@ function validate(raw: {
         kind: DATE_KINDS.includes(d.kind) ? d.kind : 'event'
       }))
       .slice(0, 5),
-    expiresOn: raw.expires_on && DAY.test(raw.expires_on) ? raw.expires_on : null
+    expiresOn: raw.expires_on && DAY.test(raw.expires_on) ? raw.expires_on : null,
+    disposable: raw.disposable === true
   }
 }
 
@@ -320,7 +332,8 @@ export function matchWeekday(day: string, weekday: string | null): string {
 
 function toAnalysis(key: string, stored: StoredAnalysis): MailAnalysis {
   const { summary, category, urgency, urgencyReason, dates, expiresOn } = stored
-  return { key, summary, category, urgency, urgencyReason, dates, expiresOn }
+  const disposable = stored.disposable ?? false
+  return { key, summary, category, urgency, urgencyReason, dates, expiresOn, disposable }
 }
 
 /** YYYY-MM-DD in local time. */

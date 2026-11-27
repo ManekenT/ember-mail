@@ -48,6 +48,11 @@ npm run build:win  # build the Windows installer into dist/
   restarts and archiving.
 - An open mail shows the analysis with its dates; **Add to Todoist** creates a task with
   the date as due date.
+- **Clean inbox** (inbox header) lists what can go, to review before anything happens:
+  mails with upcoming dates (added to Todoist, then archived), and mails to archive:
+  spam, expired mail, and read mail with no lasting value (newsletters, promotions,
+  notifications) older than a day. It is defensive: urgent and important mail is never
+  suggested, and unread mail only when it is spam or expired. Undo moves everything back.
 
 ## Releases and updates
 

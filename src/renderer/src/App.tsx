@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AddAccountDialog } from '@renderer/components/AddAccountDialog'
+import { CleanInboxDialog, type CleanupResult } from '@renderer/components/CleanInboxDialog'
 import { SettingsDialog } from '@renderer/components/SettingsDialog'
+import { suggestCleanup, type CleanupSuggestion } from '@renderer/lib/cleanup'
 import { Sidebar } from '@renderer/components/Sidebar'
 import { TitleBar } from '@renderer/components/TitleBar'
 import { Toast, type ToastMessage } from '@renderer/components/Toast'
@@ -22,6 +24,8 @@ function App(): React.JSX.Element {
   const [focusKey, setFocusKey] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  /** Suggestions are taken once when the dialog opens, so the list holds still. */
+  const [cleanup, setCleanup] = useState<CleanupSuggestion[] | null>(null)
   const [toast, setToast] = useState<ToastMessage | null>(null)
 
   const archived = useArchive(folder === 'archive')
@@ -126,6 +130,26 @@ function App(): React.JSX.Element {
     [archive, moveToInbox]
   )
 
+  const cleanupDone = useCallback(
+    ({ archived, tasks, failed }: CleanupResult) => {
+      const parts = [`Archived ${archived.length} ${archived.length === 1 ? 'mail' : 'mails'}`]
+      if (tasks > 0) parts.push(`added ${tasks} to Todoist`)
+      if (failed > 0) parts.push(`${failed} failed`)
+      const undoable = archived.filter((a) => a.archivedUid !== null)
+      const undo =
+        undoable.length === 0
+          ? undefined
+          : () => {
+              Promise.all(undoable.map((a) => window.api.moveToInbox(a.accountId, a.archivedUid!)))
+                .then(() => showToast('Moved back to the inbox'))
+                .catch((e: Error) => showToast(cleanError(e)))
+            }
+      showToast(parts.join(', '), undo)
+      if (failed > 0) void refresh()
+    },
+    [showToast, refresh]
+  )
+
   const removeAccount = useCallback(
     async (account: AccountInfo) => {
       if (!window.confirm(`Remove ${account.name} from Ember Mail? Your mail stays on the server.`))
@@ -154,7 +178,12 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement
-      if (addOpen || settingsOpen || target.closest('input, textarea, select, [role="dialog"]'))
+      if (
+        addOpen ||
+        settingsOpen ||
+        cleanup ||
+        target.closest('input, textarea, select, [role="dialog"]')
+      )
         return
       if (event.ctrlKey || event.metaKey || event.altKey) return
 
@@ -176,7 +205,7 @@ function App(): React.JSX.Element {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [addOpen, settingsOpen, openKey, focusKey, visible, open, back, toggleArchive])
+  }, [addOpen, settingsOpen, cleanup, openKey, focusKey, visible, open, back, toggleArchive])
 
   return (
     <div className="ambient flex h-full flex-col">
@@ -227,11 +256,27 @@ function App(): React.JSX.Element {
             onOpen={open}
             onToggleArchive={toggleArchive}
             onAddAccount={() => setAddOpen(true)}
+            onCleanInbox={
+              mailbox.ai?.hasClaudeKey ? () => setCleanup(suggestCleanup(visible)) : undefined
+            }
           />
         )}
       </div>
 
       <AddAccountDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => void refresh()} />
+      <CleanInboxDialog
+        open={cleanup !== null}
+        onOpenChange={(next) => !next && setCleanup(null)}
+        suggestions={cleanup ?? []}
+        accounts={accounts}
+        hasTodoist={mailbox.ai?.hasTodoistToken ?? false}
+        onOpenSettings={() => {
+          setCleanup(null)
+          setSettingsOpen(true)
+        }}
+        onArchiving={hide}
+        onDone={cleanupDone}
+      />
       <SettingsDialog
         open={settingsOpen}
         onOpenChange={setSettingsOpen}

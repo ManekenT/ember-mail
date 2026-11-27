@@ -84,6 +84,8 @@ export interface MailAnalysis {
   dates: MailDate[]
   /** YYYY-MM-DD after which the mail is no longer relevant, or null. */
   expiresOn: string | null
+  /** No lasting value once read (promotions, newsletters, notifications, codes). */
+  disposable: boolean
 }
 
 export interface AiSettings {
