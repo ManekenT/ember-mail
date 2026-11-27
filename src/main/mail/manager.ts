@@ -4,14 +4,8 @@ import icon from '../../../resources/icon.png?asset'
 import { getPassword, listAccounts } from '../accounts'
 import { Analyzer } from '../ai/analyzer'
 import { getSecret } from '../settings'
-import type {
-  AccountInfo,
-  AccountStatus,
-  ArchivePage,
-  MailSummary,
-  SearchQuery
-} from '../../shared/types'
-import { AccountConnection, type FoundMail } from './connection'
+import type { AccountInfo, AccountStatus, ArchivePage, MailSummary } from '../../shared/types'
+import { AccountConnection } from './connection'
 
 /** Owns one live connection per account and merges their inboxes. */
 export class MailManager {
@@ -98,18 +92,15 @@ export class MailManager {
     }
   }
 
-  /** The last search's mails by key, for answering a question about them. */
-  private found = new Map<string, FoundMail>()
-
   /**
    * Searches every connected account. A mail in several folders (a copy in Sent of a
    * mail to yourself) counts once, inbox first. Accounts that fail are left out.
    */
-  async search(query: SearchQuery, perFolder: number, limit: number): Promise<FoundMail[]> {
+  async search(words: string[], perFolder: number, limit: number): Promise<MailSummary[]> {
     const live = [...this.connections.values()].filter((c) => c.status.state === 'live')
     const results = await Promise.all(
       live.map((c) =>
-        c.search(query, perFolder).catch((error) => {
+        c.search(words, perFolder).catch((error) => {
           console.error(`[${c.account.name}] search failed`, error)
           return []
         })
@@ -118,22 +109,16 @@ export class MailManager {
     const seen = new Set<string>()
     const mails = results
       .flat()
-      .filter(({ mail }) => {
+      .filter((mail) => {
         const id = mail.messageId ? `${mail.accountId}:${mail.messageId}` : mail.key
         if (seen.has(id)) return false
         seen.add(id)
         return true
       })
-      .map(({ mail, text }) => ({ mail: this.withAnalysis(mail), text }))
-      .sort((a, b) => b.mail.date.localeCompare(a.mail.date))
+      .map((mail) => this.withAnalysis(mail))
+      .sort((a, b) => b.date.localeCompare(a.date))
       .slice(0, limit)
-    this.found = new Map(mails.map((m) => [m.mail.key, m]))
     return mails
-  }
-
-  /** Mails from the last search, in the order given. Unknown keys are skipped. */
-  foundMails(keys: string[]): FoundMail[] {
-    return keys.flatMap((key) => this.found.get(key) ?? [])
   }
 
   connection(accountId: string): AccountConnection {

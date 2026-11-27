@@ -369,7 +369,6 @@ function App(): React.JSX.Element {
           <SearchScreen
             search={search}
             accounts={accounts}
-            hasClaude={mailbox.ai?.hasClaudeKey ?? false}
             onOpen={setSearchMail}
             onClose={closeSearch}
           />

@@ -20,14 +20,6 @@ const api: EmberApi = {
     return () => ipcRenderer.removeListener('ai:draft:text', listener)
   },
   searchMail: (query) => ipcRenderer.invoke('mail:search', query),
-  askMailbox: (requestId, question, keys) =>
-    ipcRenderer.invoke('ask:answer', requestId, question, keys),
-  onAnswerText: (callback) => {
-    const listener = (_event: unknown, requestId: string, text: string): void =>
-      callback(requestId, text)
-    ipcRenderer.on('ask:text', listener)
-    return () => ipcRenderer.removeListener('ask:text', listener)
-  },
   removeAccount: (id) => ipcRenderer.invoke('accounts:remove', id),
   getStatuses: () => ipcRenderer.invoke('accounts:statuses'),
   listInbox: () => ipcRenderer.invoke('inbox:list'),

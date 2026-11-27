@@ -9,7 +9,6 @@ import {
   saveAccount,
   updateAccount
 } from './accounts'
-import { ANSWER_MAILS, answerQuestion, planSearch } from './ai/ask'
 import { draftReply, suggestReplies } from './ai/drafts'
 import { sendViaSmtp, testSmtp } from './mail/send'
 import { testConnection } from './mail/connection'
@@ -146,21 +145,14 @@ export function registerIpc(mail: MailManager): void {
     )
   })
 
-  ipcMain.handle('mail:search', async (_event, request: string): Promise<SearchResult> => {
-    const text = request.trim()
-    if (!text) return { mails: [], answer: false }
-    const key = getSecret('claudeKey')
-    // Without Claude, the words are searched as typed.
-    const plan = key ? await planSearch(key, text) : { query: { terms: [text] }, answer: false }
-    const found = await mail.search(plan.query, 20, 60)
-    return { mails: found.map((f) => f.mail), answer: plan.answer && found.length > 0 }
+  ipcMain.handle('mail:search', async (_event, query: string): Promise<SearchResult> => {
+    const words = query
+      .split(/\s+/)
+      .filter((w) => w.length > 0)
+      .slice(0, 8)
+    if (words.length === 0) return { mails: [] }
+    return { mails: await mail.search(words, 30, 100) }
   })
-
-  ipcMain.handle('ask:answer', async (event, requestId: string, question: string, keys: string[]) =>
-    answerQuestion(claudeKey(), question, mail.foundMails(keys.slice(0, ANSWER_MAILS)), (text) =>
-      event.sender.send('ask:text', requestId, text)
-    )
-  )
 
   ipcMain.handle('settings:ai', () => aiSettings())
 

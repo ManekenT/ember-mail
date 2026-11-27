@@ -43,7 +43,8 @@ npm run build:win  # build the Windows installer into dist/
 - HTML mails are sanitized (DOMPurify) and shown in a sandboxed frame that can't run
   scripts. Links open in your browser.
 - **Search** (title bar, <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>/</kbd>) looks through Inbox, Archive
-  and Sent of every account on the server. Without Claude, it finds the words as typed.
+  and Sent of every account on the server. Every word must appear in the sender, recipients,
+  subject or text. Results open like any mail; <kbd>Esc</kbd> goes back to them.
 - The source button in a mail's toolbar shows its raw source (headers and MIME parts).
 
 ## Claude
@@ -62,11 +63,6 @@ npm run build:win  # build the Windows installer into dist/
   spam, promotions, newsletters and expired mail (even unread), and read notifications
   and other mail with no lasting value. Urgent and important mail is never suggested.
   Undo moves everything back.
-- **Ask your mailbox**: with Claude, the search understands questions ("when is my dentist
-  appointment?", "what did I tell Lena about Saturday?"). Haiku 5.5 turns the request into
-  server searches (German and English words, a person, dates); for a question, Claude Opus 5.5
-  reads the newest 25 matches and answers in a few sentences. Each fact links to the mail it
-  comes from, and those mails are listed first.
 - **Draft reply**: the reply screen offers a few one-tap ideas (Haiku 5.5), or type what
   the reply should say. Claude Opus 5.5 writes it into the body in the mail's language,
   with placeholders for facts it doesn't know. Nothing is sent without you.

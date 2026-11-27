@@ -1,4 +1,4 @@
-import { ImapFlow, type FetchMessageObject, type SearchObject } from 'imapflow'
+import { ImapFlow, type FetchMessageObject } from 'imapflow'
 import { simpleParser, type AddressObject } from 'mailparser'
 
 import type {
@@ -6,8 +6,7 @@ import type {
   AccountStatus,
   MailAddress,
   MailDetail,
-  MailSummary,
-  SearchQuery
+  MailSummary
 } from '../../shared/types'
 
 const INBOX = 'INBOX'
@@ -21,12 +20,6 @@ const RECONNECT_DELAYS_MS = [2_000, 5_000, 15_000, 30_000, 60_000]
 export interface ArchiveResult {
   archivePath: string
   archivedUid: number | null
-}
-
-/** A mail found by a search, with the start of its text. */
-export interface FoundMail {
-  mail: MailSummary
-  text: string
 }
 
 export interface ConnectionEvents {
@@ -157,29 +150,29 @@ export class AccountConnection {
   }
 
   /**
-   * Searches Inbox, Archive and Sent on the server. Each folder gives its `limit` newest
-   * matches. Mails must match one of the terms (anywhere in headers or text), the person
-   * (as sender or recipient) and the dates, where given.
+   * Searches Inbox, Archive and Sent on the server. Every word must appear somewhere in
+   * the headers (sender, recipients, subject) or the text. Each folder gives its `limit`
+   * newest matches.
    */
-  async search(query: SearchQuery, limit: number): Promise<FoundMail[]> {
-    const found: FoundMail[] = []
+  async search(words: string[], limit: number): Promise<MailSummary[]> {
+    const found: MailSummary[] = []
     for (const folder of ['inbox', 'archive', 'sent'] as const) {
       const path = folder === 'sent' ? await this.findSentFolder() : await this.pathFor(folder)
       if (!path) continue
       const results = await this.inFolder(path, async (client) => {
-        const uids = await searchUids(client, query)
+        const uids = await searchUids(client, words)
         const page = uids.sort((a, b) => b - a).slice(0, limit)
         if (page.length === 0) return []
         const fetched = await client.fetchAll(page.join(','), SUMMARY_QUERY, { uid: true })
-        const mails: FoundMail[] = []
+        const mails: MailSummary[] = []
         for (const message of fetched) {
-          const { summary, text } = await this.summarize(message, folder)
+          const { summary } = await this.summarize(message, folder)
           // Keep the live entry for inbox mails, so read state stays in sync.
           const mail = (folder === 'inbox' && this.messages.get(summary.uid)) || summary
           if (folder === 'archive' && !this.archived.has(summary.uid)) {
             this.archived.set(summary.uid, summary)
           }
-          mails.push({ mail, text })
+          mails.push(mail)
         }
         return mails
       })
@@ -470,29 +463,15 @@ export class AccountConnection {
   }
 }
 
-/** UIDs in the selected folder that match the query. */
-async function searchUids(client: ImapFlow, query: SearchQuery): Promise<number[]> {
-  const dates: SearchObject = {
-    ...(query.since ? { since: query.since } : {}),
-    ...(query.before ? { before: query.before } : {})
-  }
-  const run = async (criteria: SearchObject): Promise<number[]> =>
-    (await client.search({ ...dates, ...criteria }, { uid: true })) || []
-
+/** UIDs in the selected folder that contain every word (in headers or text). */
+async function searchUids(client: ImapFlow, words: string[]): Promise<number[]> {
   let uids: number[] | null = null
-  const terms = query.terms.map((t) => t.trim()).filter(Boolean)
-  if (terms.length > 0) {
-    uids = await run(
-      terms.length === 1 ? { text: terms[0] } : { or: terms.map((text) => ({ text })) }
-    )
+  for (const word of words) {
+    const matches: number[] = (await client.search({ text: word }, { uid: true })) || []
+    uids = uids === null ? matches : uids.filter((uid) => matches.includes(uid))
+    if (uids.length === 0) break
   }
-  const person = query.person?.trim()
-  if (person && (uids === null || uids.length > 0)) {
-    const matches = new Set(await run({ or: [{ from: person }, { to: person }, { cc: person }] }))
-    uids = uids === null ? [...matches] : uids.filter((uid) => matches.has(uid))
-  }
-  if (uids === null) uids = Object.keys(dates).length > 0 ? await run({}) : []
-  return uids
+  return uids ?? []
 }
 
 const SUMMARY_QUERY = {
