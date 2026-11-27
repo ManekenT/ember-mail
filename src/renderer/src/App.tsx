@@ -200,13 +200,6 @@ function App(): React.JSX.Element {
         <MailScreen
           mail={openMail}
           account={accountById.get(openMail.accountId)}
-          position={{
-            index: Math.max(
-              0,
-              visible.findIndex((m) => m.key === openMail.key)
-            ),
-            total: visible.length
-          }}
           onBack={back}
           onToggleArchive={toggleArchive}
         />

@@ -13,7 +13,6 @@ import type { AccountInfo, MailDetail, MailSummary } from '../../../shared/types
 interface MailScreenProps {
   mail: MailSummary
   account: AccountInfo | undefined
-  position: { index: number; total: number }
   onBack: () => void
   /** Archives an inbox mail, or moves an archived mail back to the inbox. */
   onToggleArchive: (mail: MailSummary) => void
@@ -22,7 +21,6 @@ interface MailScreenProps {
 export function MailScreen({
   mail,
   account,
-  position,
   onBack,
   onToggleArchive
 }: MailScreenProps): React.JSX.Element {
@@ -70,10 +68,6 @@ export function MailScreen({
               </Kbd>
             </Button>
           )}
-          <span className="mx-1 h-5 w-px bg-hairline/10" />
-          <span className="px-2 text-xs text-muted-foreground tabular-nums">
-            {position.index + 1} / {position.total}
-          </span>
         </div>
       </div>
 

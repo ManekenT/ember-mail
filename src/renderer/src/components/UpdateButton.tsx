@@ -15,7 +15,7 @@ export function UpdateButton(): React.JSX.Element | null {
 
   let icon = <RefreshCw />
   let label: React.ReactNode = 'Check for updates'
-  let status = 'Checks every few hours'
+  let status = ''
   let action: (() => void) | undefined = () => void window.api.checkForUpdates()
   let tone: 'quiet' | 'busy' | 'ready' | 'error' = 'quiet'
 
@@ -29,7 +29,6 @@ export function UpdateButton(): React.JSX.Element | null {
     case 'up-to-date':
       icon = <Check className="text-live" />
       label = 'Up to date'
-      status = 'Checked just now'
       break
     case 'downloading':
       icon = <Download />
@@ -39,14 +38,13 @@ export function UpdateButton(): React.JSX.Element | null {
           <span className="text-muted-foreground tabular-nums">{phase.percent}%</span>
         </>
       )
-      status = 'Downloading'
       action = undefined
       tone = 'busy'
       break
     case 'ready':
       icon = <Rocket />
       label = canInstall ? `Install ${phase.version} and restart` : `${phase.version} downloaded`
-      status = canInstall ? 'Ready to install' : 'Installs only in the installed app'
+      status = canInstall ? '' : 'Installs only in the installed app'
       action = canInstall ? () => void window.api.installUpdate() : undefined
       tone = 'ready'
       break

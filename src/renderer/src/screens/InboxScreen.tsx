@@ -65,7 +65,7 @@ export function InboxScreen({
               {inArchive
                 ? archive?.query.trim()
                   ? `${mails.length}${archive.hasMore ? '+' : ''} found`
-                  : `${mails.length}${archive?.hasMore ? '+' : ''} archived ${mails.length === 1 ? 'mail' : 'mails'} · nothing is ever deleted`
+                  : `${mails.length}${archive?.hasMore ? '+' : ''} archived ${mails.length === 1 ? 'mail' : 'mails'}`
                 : `${mails.length} ${mails.length === 1 ? 'mail' : 'mails'} · ${unread} unread`}
             </p>
           </div>

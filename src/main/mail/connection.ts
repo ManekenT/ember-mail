@@ -355,10 +355,26 @@ async function previewText(source: Buffer): Promise<string> {
     // The source is cut off after PREVIEW_BYTES; the parser copes with that.
     const parsed = await simpleParser(source, { skipImageLinks: true, skipTextLinks: true })
     const text = parsed.text ?? (typeof parsed.html === 'string' ? stripTags(parsed.html) : '')
-    return text.replace(/\s+/g, ' ').trim().slice(0, 240)
+    return cleanPreview(text).slice(0, 240)
   } catch {
     return ''
   }
+}
+
+/**
+ * Plain-text parts of HTML newsletters are full of image and link URLs, like
+ * "[https://example.com/logo.png] https://example.com". Those say nothing in a preview.
+ */
+export function cleanPreview(text: string): string {
+  return text
+    .replace(/\[\s*(?:https?:|mailto:|cid:|www\.)[^\]]*\]/gi, ' ') // [https://…] image placeholders
+    .replace(/<\s*(?:https?:|mailto:|www\.)[^>]*>/gi, ' ') // <https://…>
+    .replace(/\(\s*(?:https?:|mailto:|www\.)[^)]*\)/gi, ' ') // (https://…)
+    .replace(/(?:https?:\/\/|www\.)\S+/gi, ' ') // bare URLs
+    .replace(/\[\s*(?:(?:image|img|bild)\b[^\]]*)?\]/gi, ' ') // "[image: Logo]" and empty []
+    .replace(/([-=_*~#|])\1{2,}/g, ' ') // divider lines like ------ or ====
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function stripTags(html: string): string {

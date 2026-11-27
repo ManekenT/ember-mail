@@ -35,9 +35,10 @@
   --sidebar: hsl(240 5% 98%);
   --sidebar-foreground: hsl(240 10% 4%);
   --sidebar-border: hsl(240 6% 90%);
-  --account-1: hsl(176 55% 48%);
-  --account-2: hsl(220 80% 66%);
-  --account-3: hsl(100 45% 55%);
+  /* Account colours sit ~120° apart on the hue wheel so they never look alike. */
+  --account-1: hsl(212 90% 48%);
+  --account-2: hsl(328 80% 52%);
+  --account-3: hsl(44 95% 45%);
   --live: hsl(142 60% 50%);
   /* Behind sender logos: light, so dark logos with transparency stay visible. */
   --logo-tile: hsl(0 0% 100%);
@@ -68,9 +69,9 @@
   --sidebar: hsl(240 8% 5%);
   --sidebar-foreground: hsl(0 0% 98%);
   --sidebar-border: hsl(240 5% 17%);
-  --account-1: hsl(176 55% 50%);
-  --account-2: hsl(220 85% 68%);
-  --account-3: hsl(100 45% 56%);
+  --account-1: hsl(212 95% 62%);
+  --account-2: hsl(328 85% 64%);
+  --account-3: hsl(46 95% 56%);
   --live: hsl(142 60% 52%);
   --glass: hsl(240 8% 12%);
   --hairline: hsl(0 0% 100%);
