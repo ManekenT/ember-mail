@@ -1,0 +1,132 @@
+:root {
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --sidebar: #f3f0ec;
+  --border: #e5e0da;
+  --text: #1f1b17;
+  --muted: #7a716a;
+  --accent: #e2581f;
+  --accent-soft: #fbe6dc;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #17130f;
+    --surface: #1d1914;
+    --sidebar: #120f0c;
+    --border: #2e2822;
+    --text: #efe9e3;
+    --muted: #9b918a;
+    --accent: #ff7a3d;
+    --accent-soft: #3a2116;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    'Segoe UI Variable',
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 14px;
+}
+
+.app {
+  display: grid;
+  grid-template-columns: 220px 360px 1fr;
+  height: 100%;
+}
+
+.sidebar {
+  background: var(--sidebar);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px;
+  gap: 16px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 16px;
+  padding: 0 8px;
+}
+
+.brand-mark {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffd27a, var(--accent));
+  box-shadow: 0 0 10px var(--accent);
+}
+
+nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.nav-item {
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.nav-item.active {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.add-account {
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  padding: 8px;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.message-list {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.pane-header {
+  padding: 16px;
+  font-weight: 600;
+  font-size: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.reader {
+  display: flex;
+}
+
+.empty {
+  margin: auto;
+  color: var(--muted);
+  padding: 24px;
+  text-align: center;
+}
