@@ -1,9 +1,11 @@
-import { Archive, ChevronLeft, Inbox } from 'lucide-react'
+import { Archive, ChevronLeft, FileCode, Inbox } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { AnalysisCard } from '@renderer/components/AnalysisCard'
 import { Avatar } from '@renderer/components/Avatar'
 import { Kbd } from '@renderer/components/Kbd'
 import { MailBody } from '@renderer/components/MailBody'
+import { SourceDialog } from '@renderer/components/SourceDialog'
 import { Button } from '@renderer/components/ui/button'
 import { cleanError } from '@renderer/lib/errors'
 import { accountDot, longDate } from '@renderer/lib/format'
@@ -16,16 +18,21 @@ interface MailScreenProps {
   onBack: () => void
   /** Archives an inbox mail, or moves an archived mail back to the inbox. */
   onToggleArchive: (mail: MailSummary) => void
+  hasTodoist: boolean
+  onOpenSettings: () => void
 }
 
 export function MailScreen({
   mail,
   account,
   onBack,
-  onToggleArchive
+  onToggleArchive,
+  hasTodoist,
+  onOpenSettings
 }: MailScreenProps): React.JSX.Element {
   const [detail, setDetail] = useState<MailDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [sourceOpen, setSourceOpen] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -68,8 +75,18 @@ export function MailScreen({
               </Kbd>
             </Button>
           )}
+          <Button
+            variant="ghost"
+            size="icon"
+            title="View source"
+            aria-label="View source"
+            onClick={() => setSourceOpen(true)}
+          >
+            <FileCode />
+          </Button>
         </div>
       </div>
+      <SourceDialog key={mail.key} mail={mail} open={sourceOpen} onOpenChange={setSourceOpen} />
 
       <div className="min-h-0 flex-1 overflow-auto">
         <article className="mx-auto grid max-w-[760px] animate-in gap-6 px-10 pt-[88px] pb-12 fade-in">
@@ -107,6 +124,15 @@ export function MailScreen({
               {longDate(mail.date)}
             </div>
           </div>
+
+          {mail.analysis && (
+            <AnalysisCard
+              key={mail.analysis.key}
+              analysis={mail.analysis}
+              hasTodoist={hasTodoist}
+              onOpenSettings={onOpenSettings}
+            />
+          )}
 
           {error ? (
             <p className="text-sm text-destructive">{error}</p>

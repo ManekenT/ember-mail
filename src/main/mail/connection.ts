@@ -13,6 +13,8 @@ const INBOX = 'INBOX'
 /** Only the newest messages are kept in the list; Inbox Zero inboxes stay small anyway. */
 const MAX_MESSAGES = 500
 const PREVIEW_BYTES = 16 * 1024
+/** How much of a mail's text is kept for Claude's analysis. */
+const ANALYSIS_TEXT_CHARS = 8_000
 const RECONNECT_DELAYS_MS = [2_000, 5_000, 15_000, 30_000, 60_000]
 
 export interface ArchiveResult {
@@ -37,6 +39,8 @@ export class AccountConnection {
   status: AccountStatus = { state: 'connecting' }
   private client: ImapFlow | null = null
   private messages = new Map<number, MailSummary>()
+  /** Plain text of the inbox mails (from the first PREVIEW_BYTES), for analysis. */
+  private texts = new Map<number, string>()
   /** Summaries of archived mails already fetched, by UID, for "Load more". */
   private archived = new Map<number, MailSummary>()
   private archiveUidValidity: bigint | null = null
@@ -70,6 +74,21 @@ export class AccountConnection {
 
   list(): MailSummary[] {
     return [...this.messages.values()]
+  }
+
+  /** The start of an inbox mail's text, for analysis. */
+  textFor(uid: number): string {
+    return this.texts.get(uid) ?? ''
+  }
+
+  /** The raw source of a mail, as the server stores it. Doesn't mark it read. */
+  async getSource(uid: number, folder: Folder = 'inbox'): Promise<string> {
+    const path = folder === 'archive' ? await this.findArchiveFolder() : INBOX
+    return this.inFolder(path, async (client) => {
+      const message = await client.fetchOne(String(uid), { source: true }, { uid: true })
+      if (!message || !message.source) throw new Error('This mail no longer exists.')
+      return message.source.toString('utf8')
+    })
   }
 
   async getMail(uid: number, folder: Folder = 'inbox'): Promise<MailDetail> {
@@ -111,6 +130,7 @@ export class AccountConnection {
     )
     if (!moved) throw new Error('The mail could not be moved to the archive.')
     this.messages.delete(uid)
+    this.texts.delete(uid)
     this.events.onChange()
     return { archivePath, archivedUid: moved.uidMap?.get(uid) ?? null }
   }
@@ -268,6 +288,7 @@ export class AccountConnection {
     const mailbox = client.mailbox
     if (!mailbox || mailbox.exists === 0) {
       this.messages.clear()
+      this.texts.clear()
       this.initialSyncDone = true
       this.events.onChange()
       return
@@ -279,7 +300,10 @@ export class AccountConnection {
     const currentUids = new Set(current.map((m) => m.uid))
 
     for (const uid of this.messages.keys()) {
-      if (!currentUids.has(uid)) this.messages.delete(uid)
+      if (!currentUids.has(uid)) {
+        this.messages.delete(uid)
+        this.texts.delete(uid)
+      }
     }
     for (const m of current) {
       const known = this.messages.get(m.uid)
@@ -310,6 +334,8 @@ export class AccountConnection {
   private async toSummary(message: FetchMessageObject, folder: Folder): Promise<MailSummary> {
     const from = message.envelope?.from?.[0]
     const date = message.envelope?.date ?? message.internalDate ?? new Date()
+    const text = cleanPreview(message.source ? await bodyText(message.source) : '')
+    if (folder === 'inbox') this.texts.set(message.uid, text.slice(0, ANALYSIS_TEXT_CHARS))
     return {
       key: `${this.account.id}:${folder}:${message.uid}`,
       accountId: this.account.id,
@@ -318,9 +344,10 @@ export class AccountConnection {
       fromName: from?.name || from?.address || 'Unknown sender',
       fromAddress: from?.address ?? '',
       subject: message.envelope?.subject || '(no subject)',
-      preview: message.source ? await previewText(message.source) : '',
+      preview: text.slice(0, 240),
       date: new Date(date).toISOString(),
-      unread: !message.flags?.has('\\Seen')
+      unread: !message.flags?.has('\\Seen'),
+      messageId: message.envelope?.messageId || undefined
     }
   }
 
@@ -350,12 +377,12 @@ const SUMMARY_QUERY = {
   source: { maxLength: PREVIEW_BYTES }
 } as const
 
-async function previewText(source: Buffer): Promise<string> {
+/** The plain text of a mail's first PREVIEW_BYTES. */
+async function bodyText(source: Buffer): Promise<string> {
   try {
     // The source is cut off after PREVIEW_BYTES; the parser copes with that.
     const parsed = await simpleParser(source, { skipImageLinks: true, skipTextLinks: true })
-    const text = parsed.text ?? (typeof parsed.html === 'string' ? stripTags(parsed.html) : '')
-    return cleanPreview(text).slice(0, 240)
+    return parsed.text ?? (typeof parsed.html === 'string' ? stripTags(parsed.html) : '')
   } catch {
     return ''
   }

@@ -40,6 +40,57 @@ export interface MailSummary {
   /** ISO date */
   date: string
   unread: boolean
+  /** The Message-ID header, which stays the same when the mail moves between folders. */
+  messageId?: string
+  /** Claude's analysis of the mail, once there is one. Follows the mail into the archive. */
+  analysis?: MailAnalysis
+}
+
+export type MailCategory =
+  | 'personal'
+  | 'work'
+  | 'finance'
+  | 'shopping'
+  | 'travel'
+  | 'event'
+  | 'newsletter'
+  | 'notification'
+  | 'promotion'
+  | 'spam'
+
+/** none: nothing special. important: worth reading soon. urgent: needs action soon. */
+export type Urgency = 'none' | 'important' | 'urgent'
+
+export interface MailDate {
+  /** Short task-like title, e.g. "Dentist appointment". */
+  title: string
+  /** YYYY-MM-DD */
+  date: string
+  /** HH:MM (24h, the mail's local time), or null for all-day. */
+  time: string | null
+  kind: 'event' | 'deadline' | 'expiry'
+  /** Set once added to Todoist. */
+  todoistTaskId?: string
+}
+
+export interface MailAnalysis {
+  /** Key in the analysis store (Message-ID based), used to update this analysis. */
+  key: string
+  summary: string
+  category: MailCategory
+  urgency: Urgency
+  /** Why the mail is important or urgent; null when urgency is none. */
+  urgencyReason: string | null
+  dates: MailDate[]
+  /** YYYY-MM-DD after which the mail is no longer relevant, or null. */
+  expiresOn: string | null
+}
+
+export interface AiSettings {
+  hasClaudeKey: boolean
+  hasTodoistToken: boolean
+  /** Why analysis is paused (e.g. the key was rejected), or null. */
+  claudeError: string | null
 }
 
 export interface MailAddress {
@@ -114,6 +165,15 @@ export interface EmberApi {
   /** Restarts into the downloaded update. */
   installUpdate(): Promise<void>
   onUpdateState(callback: (state: UpdateState) => void): () => void
+  /** The mail's raw source (headers and MIME body) as text. */
+  getMailSource(accountId: string, uid: number, folder?: MailFolder): Promise<string>
+  getAiSettings(): Promise<AiSettings>
+  /** Checks the key with Anthropic, then stores it encrypted. Null removes it. */
+  setClaudeKey(key: string | null): Promise<AiSettings>
+  /** Checks the token with Todoist, then stores it encrypted. Null removes it. */
+  setTodoistToken(token: string | null): Promise<AiSettings>
+  /** Adds one of the mail's dates to Todoist. Returns the updated analysis. */
+  addToTodoist(analysisKey: string, dateIndex: number): Promise<MailAnalysis>
   openExternal(url: string): Promise<void>
   /** Called whenever the inbox or an account status changes. Returns an unsubscribe function. */
   onInboxChanged(callback: () => void): () => void

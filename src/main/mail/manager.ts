@@ -1,6 +1,8 @@
 import { BrowserWindow, Notification } from 'electron'
 
 import { getPassword, listAccounts } from '../accounts'
+import { Analyzer } from '../ai/analyzer'
+import { getSecret } from '../settings'
 import type { AccountInfo, AccountStatus, ArchivePage, MailSummary } from '../../shared/types'
 import { AccountConnection } from './connection'
 
@@ -8,10 +10,28 @@ import { AccountConnection } from './connection'
 export class MailManager {
   private connections = new Map<string, AccountConnection>()
   private changeTimer: NodeJS.Timeout | null = null
+  readonly analyzer = new Analyzer(() => this.notifyChanged())
 
   constructor(private readonly getWindow: () => BrowserWindow | null) {}
 
+  /** Sends every inbox mail without an analysis to Claude. */
+  analyzeInbox(): void {
+    if (!this.analyzer.enabled) return
+    this.analyzer.enqueue(
+      [...this.connections.values()].flatMap((c) =>
+        c.list().map((mail) => ({ mail, text: c.textFor(mail.uid) }))
+      )
+    )
+  }
+
+  private withAnalysis(mail: MailSummary): MailSummary {
+    const analysis = this.analyzer.get(mail)
+    return analysis ? { ...mail, analysis } : mail
+  }
+
+  /** Call once the app is ready: safeStorage can't decrypt before that. */
   startAll(): void {
+    this.analyzer.configure(getSecret('claudeKey'))
     for (const account of listAccounts()) this.startAccount(account)
   }
 
@@ -43,6 +63,7 @@ export class MailManager {
   inbox(): MailSummary[] {
     return [...this.connections.values()]
       .flatMap((c) => c.list())
+      .map((m) => this.withAnalysis(m))
       .sort((a, b) => b.date.localeCompare(a.date))
   }
 
@@ -62,7 +83,10 @@ export class MailManager {
       )
     )
     return {
-      mails: pages.flatMap((p) => p.mails).sort((a, b) => b.date.localeCompare(a.date)),
+      mails: pages
+        .flatMap((p) => p.mails)
+        .map((m) => this.withAnalysis(m))
+        .sort((a, b) => b.date.localeCompare(a.date)),
       hasMore: pages.some((p) => p.hasMore)
     }
   }
@@ -78,6 +102,7 @@ export class MailManager {
     if (this.changeTimer) return
     this.changeTimer = setTimeout(() => {
       this.changeTimer = null
+      this.analyzeInbox()
       this.getWindow()?.webContents.send('inbox:changed')
     }, 100)
   }

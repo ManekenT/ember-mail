@@ -23,6 +23,13 @@ const api: EmberApi = {
     ipcRenderer.on('updates:state', listener)
     return () => ipcRenderer.removeListener('updates:state', listener)
   },
+  getMailSource: (accountId, uid, folder) =>
+    ipcRenderer.invoke('mail:source', accountId, uid, folder),
+  getAiSettings: () => ipcRenderer.invoke('settings:ai'),
+  setClaudeKey: (key) => ipcRenderer.invoke('settings:claudeKey', key),
+  setTodoistToken: (token) => ipcRenderer.invoke('settings:todoistToken', token),
+  addToTodoist: (analysisKey, dateIndex) =>
+    ipcRenderer.invoke('todoist:add', analysisKey, dateIndex),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   onInboxChanged: (callback) => {
     const listener = (): void => callback()
