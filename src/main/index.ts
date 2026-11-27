@@ -35,7 +35,9 @@ function createWindow(): void {
             height: TITLE_BAR_HEIGHT
           }
         }),
-    ...(process.platform === 'linux' ? { icon } : {}),
+    // Packaged Windows builds take the icon from the exe, but `npm run dev` runs electron.exe,
+    // so set it here too for the taskbar and window.
+    ...(process.platform !== 'darwin' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true

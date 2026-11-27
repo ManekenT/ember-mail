@@ -1,4 +1,5 @@
 import { BrowserWindow, Notification } from 'electron'
+import icon from '../../../resources/icon.png?asset'
 
 import { getPassword, listAccounts } from '../accounts'
 import { Analyzer } from '../ai/analyzer'
@@ -112,6 +113,7 @@ export class MailManager {
     const notification = new Notification({
       title: mail.fromName,
       subtitle: account.name,
+      icon,
       body: `${mail.subject}\n${mail.preview}`.slice(0, 200)
     })
     notification.on('click', () => {
