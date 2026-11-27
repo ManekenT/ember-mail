@@ -19,6 +19,25 @@ import { DeliveriesScreen } from '@renderer/screens/DeliveriesScreen'
 import { SearchScreen } from '@renderer/screens/SearchScreen'
 import type { AccountInfo, Delivery, MailFolder, MailSummary } from '../../shared/types'
 
+const SIDEBAR_KEY = 'ember.sidebar'
+
+/** UI state kept in the renderer's storage, which survives restarts. */
+function readSetting(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function writeSetting(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // Not saved; the sidebar just opens expanded next time.
+  }
+}
+
 function App(): React.JSX.Element {
   const mailbox = useMailbox()
   const { accounts, inbox, hide, refresh } = mailbox
@@ -44,6 +63,18 @@ function App(): React.JSX.Element {
   const [deliveriesOpen, setDeliveriesOpen] = useState(false)
   /** A mail opened from Deliveries. */
   const [deliveryMail, setDeliveryMail] = useState<MailSummary | null>(null)
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => readSetting(SIDEBAR_KEY) === 'collapsed'
+  )
+  const toggleSidebar = useCallback(
+    () =>
+      setSidebarCollapsed((was) => {
+        writeSetting(SIDEBAR_KEY, was ? 'expanded' : 'collapsed')
+        return !was
+      }),
+    []
+  )
 
   const archived = useArchive(folder === 'archive')
   const { remove: removeArchived, reload: reloadArchived } = archived
@@ -241,6 +272,18 @@ function App(): React.JSX.Element {
     [toggleArchive, search]
   )
 
+  // Ctrl+B anywhere collapses or expands the sidebar.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'b') {
+        event.preventDefault()
+        toggleSidebar()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleSidebar])
+
   // Ctrl+K anywhere, or / outside a text field, opens the search.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -391,6 +434,8 @@ function App(): React.JSX.Element {
               : null
           }
           deliveriesActive={deliveriesOpen}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
           onOpenDeliveries={() => {
             closeSearch()
             setDeliveriesOpen(true)
