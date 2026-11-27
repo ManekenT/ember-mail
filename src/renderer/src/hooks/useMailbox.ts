@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import type { AccountInfo, AccountStatus, MailSummary } from '../../../shared/types'
+import type { AccountInfo, AccountStatus, AiSettings, MailSummary } from '../../../shared/types'
 
 export interface Mailbox {
   accounts: AccountInfo[]
   statuses: Record<string, AccountStatus>
   inbox: MailSummary[]
   loaded: boolean
+  ai: AiSettings | null
+  setAi: (settings: AiSettings) => void
   refresh: () => Promise<void>
   /** Hides a mail right away while the server moves it. */
   hide: (key: string) => void
@@ -19,13 +21,16 @@ export function useMailbox(): Mailbox {
   const [inbox, setInbox] = useState<MailSummary[]>([])
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const [loaded, setLoaded] = useState(false)
+  const [ai, setAi] = useState<AiSettings | null>(null)
 
   const refresh = useCallback(async () => {
-    const [nextAccounts, nextStatuses, nextInbox] = await Promise.all([
+    const [nextAccounts, nextStatuses, nextInbox, nextAi] = await Promise.all([
       window.api.listAccounts(),
       window.api.getStatuses(),
-      window.api.listInbox()
+      window.api.listInbox(),
+      window.api.getAiSettings()
     ])
+    setAi(nextAi)
     setAccounts(nextAccounts)
     setStatuses(nextStatuses)
     setInbox(nextInbox)
@@ -52,6 +57,8 @@ export function useMailbox(): Mailbox {
     statuses,
     inbox: inbox.filter((m) => !hidden.has(m.key)),
     loaded,
+    ai,
+    setAi,
     refresh,
     hide
   }

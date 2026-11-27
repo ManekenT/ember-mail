@@ -1,4 +1,4 @@
-import { Archive, Inbox, Plus, Trash2 } from 'lucide-react'
+import { Archive, Inbox, Plus, Settings, Sparkles, Trash2 } from 'lucide-react'
 
 import { UpdateButton } from '@renderer/components/UpdateButton'
 import { useUpdates } from '@renderer/hooks/useUpdates'
@@ -18,6 +18,9 @@ interface SidebarProps {
   onSelect: (accountId: string) => void
   onAddAccount: () => void
   onRemoveAccount: (account: AccountInfo) => void
+  /** Why Claude's analysis is paused, if it is. */
+  claudeError: string | null
+  onOpenSettings: () => void
 }
 
 export function Sidebar({
@@ -29,7 +32,9 @@ export function Sidebar({
   onSelectFolder,
   onSelect,
   onAddAccount,
-  onRemoveAccount
+  onRemoveAccount,
+  claudeError,
+  onOpenSettings
 }: SidebarProps): React.JSX.Element {
   const updates = useUpdates()
   const unread = (accountId: string): number =>
@@ -109,6 +114,20 @@ export function Sidebar({
       </nav>
 
       <div className="mt-auto grid grid-cols-[minmax(0,1fr)] gap-3">
+        {claudeError && (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-left text-xs text-destructive"
+          >
+            <Sparkles className="mt-px size-3.5 shrink-0" />
+            {claudeError}
+          </button>
+        )}
+        <NavItem onClick={onOpenSettings}>
+          <Settings className="size-4" />
+          Settings
+        </NavItem>
         {updates && <UpdateButton state={updates} />}
         <div className="flex items-center gap-2 border-t border-hairline/[.07] pt-3">
           <StatusLine accounts={accounts} statuses={statuses} />

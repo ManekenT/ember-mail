@@ -1,12 +1,13 @@
-import { Archive, Inbox, LoaderCircle, Search, X } from 'lucide-react'
+import { Archive, CalendarDays, Inbox, LoaderCircle, Search, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 import { Avatar } from '@renderer/components/Avatar'
 import { EmberLogo } from '@renderer/components/EmberLogo'
+import { UrgencyBadge } from '@renderer/components/UrgencyBadge'
 import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import type { ArchiveList } from '@renderer/hooks/useArchive'
-import { dayGroup, monthGroup, shortTime } from '@renderer/lib/format'
+import { dayGroup, localDay, mailDateLabel, monthGroup, shortTime } from '@renderer/lib/format'
 import { cn } from '@renderer/lib/utils'
 import type { AccountInfo, MailFolder, MailSummary } from '../../../shared/types'
 
@@ -43,6 +44,7 @@ export function InboxScreen({
   const accountById = new Map(accounts.map((a) => [a.id, a]))
   const unread = mails.filter((m) => m.unread).length
   const focusRef = useRef<HTMLDivElement>(null)
+  const today = localDay()
 
   useEffect(() => {
     focusRef.current?.scrollIntoView({ block: 'nearest' })
@@ -132,6 +134,7 @@ export function InboxScreen({
               const account = accountById.get(mail.accountId)
               const showDay = showDayFor.has(mail.key)
               const focused = mail.key === focusKey
+              const nextDate = mail.analysis?.dates.find((d) => d.date >= today)
               return (
                 <div key={mail.key}>
                   {showDay && (
@@ -172,20 +175,35 @@ export function InboxScreen({
                           {shortTime(mail.date)}
                         </span>
                       </div>
-                      <div
-                        className={cn(
-                          'truncate text-[15px]',
-                          mail.unread ? 'font-semibold' : 'text-foreground/90'
-                        )}
-                      >
+                      <div className="flex min-w-0 items-center gap-2">
                         {mail.unread && (
-                          <span className="mr-2 inline-block size-2 -translate-y-px rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
+                          <span className="inline-block size-2 shrink-0 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
                         )}
-                        {mail.subject}
+                        <UrgencyBadge analysis={mail.analysis} />
+                        <span
+                          className={cn(
+                            'truncate text-[15px]',
+                            mail.unread ? 'font-semibold' : 'text-foreground/90'
+                          )}
+                        >
+                          {mail.subject}
+                        </span>
                       </div>
-                      <div className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-                        {mail.preview}
-                      </div>
+                      {mail.analysis ? (
+                        <div className="flex min-w-0 items-center gap-2 text-sm leading-relaxed text-muted-foreground">
+                          <span className="truncate">{mail.analysis.summary}</span>
+                          {nextDate && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline/10 bg-hairline/[.04] px-2 py-px text-xs">
+                              <CalendarDays className="size-3" />
+                              {mailDateLabel(nextDate.date, nextDate.time)}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                          {mail.preview}
+                        </div>
+                      )}
                     </div>
                     <div className="absolute top-3 right-3 hidden gap-1 group-hover:flex">
                       <Button

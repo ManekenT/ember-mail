@@ -35,6 +35,21 @@ npm run build:win  # build the Windows installer into dist/
   <kbd>E</kbd> archive.
 - HTML mails are sanitized (DOMPurify) and shown in a sandboxed frame that can't run
   scripts. Links open in your browser.
+- The source button in a mail's toolbar shows its raw source (headers and MIME parts).
+
+## Claude
+
+- **Settings** in the sidebar takes a Claude API key and a Todoist API token, both stored
+  encrypted by Windows. Without a key, the app uses the Anthropic CLI sign-in
+  (`ant auth login`) when this PC has one. Usage is billed to the Anthropic Console
+  organization either way.
+- Every inbox mail is analysed once by Claude Haiku 5.5: a one-line summary (shown in the
+  list instead of the preview), a category, an urgency (Urgent and Important get a badge),
+  dates (events, deadlines, expiry) and when the mail stops being relevant. Results are
+  kept in `analysis.json` in the app's data folder, keyed by Message-ID, so they survive
+  restarts and archiving.
+- An open mail shows the analysis with its dates; **Add to Todoist** creates a task with
+  the date as due date.
 
 ## Releases and updates
 

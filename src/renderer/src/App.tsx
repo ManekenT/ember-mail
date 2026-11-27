@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AddAccountDialog } from '@renderer/components/AddAccountDialog'
+import { SettingsDialog } from '@renderer/components/SettingsDialog'
 import { Sidebar } from '@renderer/components/Sidebar'
 import { TitleBar } from '@renderer/components/TitleBar'
 import { Toast, type ToastMessage } from '@renderer/components/Toast'
@@ -20,6 +21,7 @@ function App(): React.JSX.Element {
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [focusKey, setFocusKey] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [toast, setToast] = useState<ToastMessage | null>(null)
 
   const archived = useArchive(folder === 'archive')
@@ -152,7 +154,8 @@ function App(): React.JSX.Element {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement
-      if (addOpen || target.closest('input, textarea, select, [role="dialog"]')) return
+      if (addOpen || settingsOpen || target.closest('input, textarea, select, [role="dialog"]'))
+        return
       if (event.ctrlKey || event.metaKey || event.altKey) return
 
       const currentKey = openKey ?? focusKey
@@ -173,7 +176,7 @@ function App(): React.JSX.Element {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [addOpen, openKey, focusKey, visible, open, back, toggleArchive])
+  }, [addOpen, settingsOpen, openKey, focusKey, visible, open, back, toggleArchive])
 
   return (
     <div className="ambient flex h-full flex-col">
@@ -197,6 +200,8 @@ function App(): React.JSX.Element {
           }}
           onAddAccount={() => setAddOpen(true)}
           onRemoveAccount={(account) => void removeAccount(account)}
+          claudeError={mailbox.ai?.claudeError ?? null}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
 
         {openMail ? (
@@ -205,6 +210,8 @@ function App(): React.JSX.Element {
             account={accountById.get(openMail.accountId)}
             onBack={back}
             onToggleArchive={toggleArchive}
+            hasTodoist={mailbox.ai?.hasTodoistToken ?? false}
+            onOpenSettings={() => setSettingsOpen(true)}
           />
         ) : (
           <InboxScreen
@@ -225,6 +232,11 @@ function App(): React.JSX.Element {
       </div>
 
       <AddAccountDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => void refresh()} />
+      <SettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        onChanged={mailbox.setAi}
+      />
       <Toast key={toast?.id} toast={toast} onDismiss={dismissToast} />
     </div>
   )

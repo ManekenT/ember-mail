@@ -83,3 +83,28 @@ export function longDate(iso: string): string {
     minute: '2-digit'
   })
 }
+
+/** "Today", "Tomorrow", "Fri 5 Dec" or "Fri 5 Dec 2027", plus ", 18:00" when there is a time. */
+export function mailDateLabel(day: string, time: string | null, now = new Date()): string {
+  const [year, month, date] = day.split('-').map(Number)
+  const value = new Date(year, month - 1, date)
+  const days = Math.round((value.getTime() - startOfDay(now)) / 86_400_000)
+  const label =
+    days === 0
+      ? 'Today'
+      : days === 1
+        ? 'Tomorrow'
+        : value.toLocaleDateString(undefined, {
+            weekday: 'short',
+            day: 'numeric',
+            month: 'short',
+            ...(year === now.getFullYear() ? {} : { year: 'numeric' })
+          })
+  return time ? `${label}, ${time}` : label
+}
+
+/** Today as YYYY-MM-DD in local time. */
+export function localDay(now = new Date()): string {
+  const pad = (n: number): string => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
