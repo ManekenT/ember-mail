@@ -9,6 +9,7 @@ import {
   saveAccount,
   updateAccount
 } from './accounts'
+import { ANSWER_MAILS, answerQuestion, planSearch } from './ai/ask'
 import { draftReply, suggestReplies } from './ai/drafts'
 import { sendViaSmtp, testSmtp } from './mail/send'
 import { testConnection } from './mail/connection'
@@ -25,7 +26,8 @@ import type {
   DraftRequest,
   MailAnalysis,
   MailFolder,
-  OutgoingMail
+  OutgoingMail,
+  SearchResult
 } from '../shared/types'
 
 export function registerIpc(mail: MailManager): void {
@@ -73,7 +75,7 @@ export function registerIpc(mail: MailManager): void {
   )
 
   ipcMain.handle('mail:get', (_event, accountId: string, uid: number, folder?: MailFolder) =>
-    mail.connection(accountId).getMail(uid, folder === 'archive' ? 'archive' : 'inbox')
+    mail.connection(accountId).getMail(uid, folder ?? 'inbox')
   )
 
   ipcMain.handle('mail:archive', async (_event, accountId: string, uid: number) => {
@@ -86,7 +88,7 @@ export function registerIpc(mail: MailManager): void {
   )
 
   ipcMain.handle('mail:source', (_event, accountId: string, uid: number, folder?: MailFolder) =>
-    mail.connection(accountId).getSource(uid, folder === 'archive' ? 'archive' : 'inbox')
+    mail.connection(accountId).getSource(uid, folder ?? 'inbox')
   )
 
   ipcMain.handle('prefs:senderName', () => getPreferences().senderName ?? '')
@@ -143,6 +145,22 @@ export function registerIpc(mail: MailManager): void {
       (text) => event.sender.send('ai:draft:text', request.requestId, text)
     )
   })
+
+  ipcMain.handle('mail:search', async (_event, request: string): Promise<SearchResult> => {
+    const text = request.trim()
+    if (!text) return { mails: [], answer: false }
+    const key = getSecret('claudeKey')
+    // Without Claude, the words are searched as typed.
+    const plan = key ? await planSearch(key, text) : { query: { terms: [text] }, answer: false }
+    const found = await mail.search(plan.query, 20, 60)
+    return { mails: found.map((f) => f.mail), answer: plan.answer && found.length > 0 }
+  })
+
+  ipcMain.handle('ask:answer', async (event, requestId: string, question: string, keys: string[]) =>
+    answerQuestion(claudeKey(), question, mail.foundMails(keys.slice(0, ANSWER_MAILS)), (text) =>
+      event.sender.send('ask:text', requestId, text)
+    )
+  )
 
   ipcMain.handle('settings:ai', () => aiSettings())
 

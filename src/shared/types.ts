@@ -38,7 +38,7 @@ export interface AccountInfo {
 export type AccountStatus =
   { state: 'connecting' } | { state: 'live' } | { state: 'error'; message: string }
 
-export type MailFolder = 'inbox' | 'archive'
+export type MailFolder = 'inbox' | 'archive' | 'sent'
 
 export interface MailSummary {
   /** `${accountId}:${folder}:${uid}`, unique across folders. */
@@ -57,6 +57,27 @@ export interface MailSummary {
   messageId?: string
   /** Claude's analysis of the mail, once there is one. Follows the mail into the archive. */
   analysis?: MailAnalysis
+  /** Sent mail only: the first recipient. */
+  toName?: string
+}
+
+/** What to look for on the server. Every part that is given must match. */
+export interface SearchQuery {
+  /** Mails containing any of these (headers or text). */
+  terms: string[]
+  /** A name or address the mail is from or to. */
+  person?: string
+  /** YYYY-MM-DD */
+  since?: string
+  /** YYYY-MM-DD */
+  before?: string
+}
+
+export interface SearchResult {
+  /** Newest first, from Inbox, Archive and Sent of every account. */
+  mails: MailSummary[]
+  /** True when the request is a question Claude should answer from these mails. */
+  answer: boolean
 }
 
 export type MailCategory =
@@ -222,6 +243,14 @@ export interface EmberApi {
    */
   draftReply(request: DraftRequest): Promise<string>
   onDraftText(callback: (requestId: string, text: string) => void): () => void
+  /** Searches all accounts. With Claude, a question is first turned into searches. */
+  searchMail(query: string): Promise<SearchResult>
+  /**
+   * Has Claude answer a question from mails the last search found (by key). Text arrives
+   * through onAnswerText while it is written; resolves with the whole answer.
+   */
+  askMailbox(requestId: string, question: string, keys: string[]): Promise<string>
+  onAnswerText(callback: (requestId: string, text: string) => void): () => void
   /** The mail's raw source (headers and MIME body) as text. */
   getMailSource(accountId: string, uid: number, folder?: MailFolder): Promise<string>
   getAiSettings(): Promise<AiSettings>
