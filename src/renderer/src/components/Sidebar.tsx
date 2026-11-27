@@ -34,9 +34,11 @@ export function Sidebar({
     inbox.filter((m) => m.unread && (accountId === 'all' || m.accountId === accountId)).length
 
   return (
-    <aside className="flex min-h-0 w-[232px] shrink-0 flex-col gap-5 overflow-auto border-r bg-card px-3 py-3">
+    <aside className="sheen flex min-h-0 w-[244px] shrink-0 flex-col gap-5 overflow-auto rounded-2xl border border-hairline/[.07] bg-glass/45 px-3 py-3 backdrop-blur-2xl backdrop-saturate-150">
       <nav className="grid gap-0.5">
-        <div className="mb-1 px-2.5 text-xs font-medium text-muted-foreground">Mailboxes</div>
+        <div className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[.08em] text-muted-foreground/80 uppercase">
+          Mailboxes
+        </div>
         <NavItem
           active={folder === 'inbox' && selected === 'all'}
           onClick={() => onSelectFolder('inbox')}
@@ -55,7 +57,9 @@ export function Sidebar({
       </nav>
 
       <nav className="grid gap-0.5">
-        <div className="mb-1 px-2.5 text-xs font-medium text-muted-foreground">Accounts</div>
+        <div className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[.08em] text-muted-foreground/80 uppercase">
+          Accounts
+        </div>
         {accounts.map((account) => {
           const status = statuses[account.id]
           return (
@@ -70,6 +74,7 @@ export function Sidebar({
                     'mx-1 size-2 shrink-0 rounded-full',
                     accountDot(account.colorIndex)
                   )}
+                  style={{ boxShadow: `0 0 8px var(--account-${(account.colorIndex % 3) + 1})` }}
                 />
                 <span className="grid min-w-0 flex-1 text-left">
                   <span className="truncate">{account.name}</span>
@@ -88,7 +93,7 @@ export function Sidebar({
                 title={`Remove ${account.name}`}
                 aria-label={`Remove ${account.name}`}
                 onClick={() => onRemoveAccount(account)}
-                className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded p-1.5 text-muted-foreground group-hover:block hover:bg-background hover:text-foreground"
+                className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded-full p-1.5 text-muted-foreground group-hover:block hover:bg-hairline/[.08] hover:text-foreground"
               >
                 <Trash2 className="size-3.5" />
               </button>
@@ -101,9 +106,11 @@ export function Sidebar({
         </NavItem>
       </nav>
 
-      <div className="mt-auto grid gap-2 border-t pt-3">
+      <div className="mt-auto grid gap-3">
         <UpdateButton />
-        <StatusLine accounts={accounts} statuses={statuses} />
+        <div className="border-t border-hairline/[.07] pt-3">
+          <StatusLine accounts={accounts} statuses={statuses} />
+        </div>
       </div>
     </aside>
   )
@@ -125,8 +132,9 @@ function NavItem({
       variant="ghost"
       onClick={onClick}
       className={cn(
-        'h-9 w-full justify-start gap-3 px-2.5 font-normal text-muted-foreground hover:text-foreground',
-        active && 'bg-accent font-medium text-foreground',
+        'h-9 w-full justify-start gap-3 rounded-xl px-2.5 font-normal text-muted-foreground hover:bg-hairline/[.06] hover:text-foreground active:scale-100',
+        active &&
+          'bg-hairline/[.09] font-medium text-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--hairline)_6%,transparent)]',
         className
       )}
     >
@@ -136,7 +144,11 @@ function NavItem({
 }
 
 function Count({ value }: { value: number }): React.JSX.Element | null {
-  return value > 0 ? <span className="ml-auto text-xs tabular-nums">{value}</span> : null
+  return value > 0 ? (
+    <span className="ml-auto min-w-5 rounded-full bg-hairline/[.08] px-1.5 text-center text-[11px] tabular-nums">
+      {value}
+    </span>
+  ) : null
 }
 
 function StatusLine({
