@@ -1,4 +1,13 @@
-import { Archive, CalendarDays, Inbox, LoaderCircle, Search, Sparkles, X } from 'lucide-react'
+import {
+  Archive,
+  CalendarDays,
+  Inbox,
+  LoaderCircle,
+  Package,
+  Search,
+  Sparkles,
+  X
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { Avatar } from '@renderer/components/Avatar'
@@ -8,6 +17,7 @@ import { Button } from '@renderer/components/ui/button'
 import { Input } from '@renderer/components/ui/input'
 import type { ArchiveList } from '@renderer/hooks/useArchive'
 import { dayGroup, localDay, mailDateLabel, monthGroup, shortTime } from '@renderer/lib/format'
+import { PARCEL_LABEL } from '@renderer/lib/parcels'
 import { cn } from '@renderer/lib/utils'
 import type { AccountInfo, MailFolder, MailSummary } from '../../../shared/types'
 
@@ -219,6 +229,16 @@ export function InboxScreen({
                             <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline/10 bg-hairline/[.04] px-2 py-px text-xs">
                               <CalendarDays className="size-3" />
                               {mailDateLabel(nextDate.date, nextDate.time)}
+                            </span>
+                          )}
+                          {mail.analysis.parcel && (
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-hairline/10 bg-hairline/[.04] px-2 py-px text-xs">
+                              <Package className="size-3" />
+                              {mail.analysis.parcel.expected &&
+                              mail.analysis.parcel.status !== 'delivered' &&
+                              mail.analysis.parcel.status !== 'out_for_delivery'
+                                ? mailDateLabel(mail.analysis.parcel.expected, null)
+                                : PARCEL_LABEL[mail.analysis.parcel.status]}
                             </span>
                           )}
                         </div>

@@ -9,6 +9,7 @@ import {
   saveAccount,
   updateAccount
 } from './accounts'
+import { buildDeliveries } from './ai/deliveries'
 import { draftReply, suggestReplies } from './ai/drafts'
 import { sendViaSmtp, testSmtp } from './mail/send'
 import { testConnection } from './mail/connection'
@@ -153,6 +154,12 @@ export function registerIpc(mail: MailManager): void {
     if (words.length === 0) return { mails: [] }
     return { mails: await mail.search(words, 30, 100) }
   })
+
+  ipcMain.handle('deliveries:list', () => buildDeliveries(mail.analyzer.all()))
+
+  ipcMain.handle('mail:find', (_event, accountId: string, messageId: string) =>
+    mail.findMail(accountId, messageId)
+  )
 
   ipcMain.handle('settings:ai', () => aiSettings())
 

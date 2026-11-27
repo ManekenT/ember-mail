@@ -393,6 +393,31 @@ export class AccountConnection {
     this.quietUids.clear()
   }
 
+  /** Looks for a mail by its Message-ID in Inbox, Archive and Sent. */
+  async findByMessageId(messageId: string): Promise<MailSummary | null> {
+    for (const folder of ['inbox', 'archive', 'sent'] as const) {
+      if (folder === 'inbox') {
+        const live = this.list().find((m) => m.messageId === messageId)
+        if (live) return live
+      }
+      const path = folder === 'sent' ? await this.findSentFolder() : await this.pathFor(folder)
+      if (!path) continue
+      const found = await this.inFolder(path, async (client) => {
+        const uids =
+          (await client.search({ header: { 'message-id': messageId } }, { uid: true })) || []
+        const uid = Math.max(...uids)
+        if (!Number.isFinite(uid)) return null
+        const message = await client.fetchOne(String(uid), SUMMARY_QUERY, { uid: true })
+        if (!message) return null
+        const { summary } = await this.summarize(message, folder)
+        if (folder === 'archive') this.archived.set(summary.uid, summary)
+        return summary
+      })
+      if (found) return found
+    }
+    return null
+  }
+
   private async toSummary(message: FetchMessageObject, folder: Folder): Promise<MailSummary> {
     const { summary, text } = await this.summarize(message, folder)
     if (folder === 'inbox') this.texts.set(message.uid, text)

@@ -106,6 +106,42 @@ export interface MailAnalysis {
   expiresOn: string | null
   /** No lasting value once read (promotions, newsletters, notifications, codes). */
   disposable: boolean
+  /** Set when the mail is about an order or a parcel. */
+  parcel: Parcel | null
+}
+
+export type ParcelStatus =
+  'ordered' | 'shipped' | 'out_for_delivery' | 'pickup' | 'delivered' | 'problem'
+
+/** What a mail says about an order or shipment. Empty strings when the mail doesn't say. */
+export interface Parcel {
+  status: ParcelStatus
+  carrier: string
+  trackingNumber: string
+  /** A carrier's tracking page, or a link from the mail itself. */
+  trackingUrl: string | null
+  /** What was ordered, a few words. */
+  item: string
+  shop: string
+  /** YYYY-MM-DD, the (first) expected delivery day. */
+  expected: string | null
+}
+
+/** One order or parcel, merged from all mails about it. */
+export interface Delivery extends Parcel {
+  /** Stable while the parcel's mails don't change. */
+  id: string
+  /** ISO date of the newest mail about it. */
+  updatedAt: string
+  /** The newest mail about it, to open it. */
+  mail: {
+    analysisKey: string
+    accountId: string | null
+    messageId: string | null
+    fromName: string
+    fromAddress: string
+    subject: string
+  }
 }
 
 export interface AiSettings {
@@ -249,6 +285,10 @@ export interface EmberApi {
   /** Adds one of the mail's dates to Todoist. Returns the updated analysis. */
   addToTodoist(analysisKey: string, dateIndex: number): Promise<MailAnalysis>
   openExternal(url: string): Promise<void>
+  /** Orders and parcels on their way (and those delivered in the last days). */
+  listDeliveries(): Promise<Delivery[]>
+  /** Finds a mail by Message-ID in the account's Inbox, Archive or Sent. */
+  findMail(accountId: string, messageId: string): Promise<MailSummary | null>
   /** Called whenever the inbox or an account status changes. Returns an unsubscribe function. */
   onInboxChanged(callback: () => void): () => void
   /** Called when a new-mail notification is clicked. */
