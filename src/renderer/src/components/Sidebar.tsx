@@ -124,18 +124,22 @@ export function Sidebar({
             {claudeError}
           </button>
         )}
-        <NavItem onClick={onOpenSettings}>
-          <Settings className="size-4" />
-          Settings
-        </NavItem>
         {updates && <UpdateButton state={updates} />}
         <div className="flex items-center gap-2 border-t border-hairline/[.07] pt-3">
-          <StatusLine accounts={accounts} statuses={statuses} />
           {updates && (
-            <span className="ml-auto shrink-0 rounded-full border border-hairline/10 bg-hairline/[.04] px-2 py-px text-[11px] text-muted-foreground tabular-nums">
+            <span className="shrink-0 rounded-full border border-hairline/10 bg-hairline/[.04] px-2 py-px text-[11px] text-muted-foreground tabular-nums">
               v{updates.currentVersion}
             </span>
           )}
+          <button
+            type="button"
+            title="Settings"
+            aria-label="Settings"
+            onClick={onOpenSettings}
+            className="ml-auto shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-hairline/[.08] hover:text-foreground"
+          >
+            <Settings className="size-4" />
+          </button>
         </div>
       </div>
     </aside>
@@ -175,36 +179,4 @@ function Count({ value }: { value: number }): React.JSX.Element | null {
       {value}
     </span>
   ) : null
-}
-
-function StatusLine({
-  accounts,
-  statuses
-}: {
-  accounts: AccountInfo[]
-  statuses: Record<string, AccountStatus>
-}): React.JSX.Element {
-  const live = accounts.filter((a) => statuses[a.id]?.state === 'live').length
-  const failing = accounts.filter((a) => statuses[a.id]?.state === 'error').length
-  const total = accounts.length
-
-  let dot = 'bg-muted-foreground'
-  let text = 'No accounts yet'
-  if (total > 0 && live === total) {
-    dot = 'bg-live shadow-[0_0_0_3px_color-mix(in_oklab,var(--live)_20%,transparent)]'
-    text = `Live · ${total} ${total === 1 ? 'account' : 'accounts'}`
-  } else if (failing > 0) {
-    dot = 'bg-destructive'
-    text = `${failing} of ${total} ${total === 1 ? 'account' : 'accounts'} not connected`
-  } else if (total > 0) {
-    dot = 'bg-primary animate-pulse'
-    text = 'Connecting…'
-  }
-
-  return (
-    <div className="flex min-w-0 items-center gap-2 px-1 text-xs text-muted-foreground">
-      <span className={cn('size-2 shrink-0 rounded-full', dot)} />
-      <span className="truncate">{text}</span>
-    </div>
-  )
 }

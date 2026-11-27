@@ -12,9 +12,7 @@ export class MailManager {
   private changeTimer: NodeJS.Timeout | null = null
   readonly analyzer = new Analyzer(() => this.notifyChanged())
 
-  constructor(private readonly getWindow: () => BrowserWindow | null) {
-    this.analyzer.configure(getSecret('claudeKey'))
-  }
+  constructor(private readonly getWindow: () => BrowserWindow | null) {}
 
   /** Sends every inbox mail without an analysis to Claude. */
   analyzeInbox(): void {
@@ -31,7 +29,9 @@ export class MailManager {
     return analysis ? { ...mail, analysis } : mail
   }
 
+  /** Call once the app is ready: safeStorage can't decrypt before that. */
   startAll(): void {
+    this.analyzer.configure(getSecret('claudeKey'))
     for (const account of listAccounts()) this.startAccount(account)
   }
 
