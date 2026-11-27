@@ -151,6 +151,8 @@ export class Analyzer {
     if (!stored || !date) throw new Error('This date no longer exists.')
     date.todoistTaskId = taskId
     this.scheduleSave()
+    // The inbox list carries analyses too; tell the window to refetch it.
+    this.onChange()
     return toAnalysis(key, stored)
   }
 
