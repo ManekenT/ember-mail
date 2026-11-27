@@ -58,7 +58,7 @@ Fields:
 - category: the best fit.
 - urgency: "urgent" only when Tom must act within about two days or something real is at stake (payment due, account locked, appointment changed, a person waiting on a time-critical answer). "important" for mail from real people that expects a reply, or anything with consequences that isn't time-critical. Everything else, including all newsletters, promotions and automated notifications without consequences, is "none". Be conservative: most mail is "none".
 - urgency_reason: a few words on why, when urgency is not "none"; otherwise null.
-- dates: concrete dates in the mail that Tom might want in his task list: events and appointments (kind "event"), deadlines to act by (kind "deadline"), and when an offer, voucher, code or the mail's whole point runs out (kind "expiry"). Give each a short title that works as a task name ("Dentist appointment", "Pay invoice 2026-114", "Voucher expires"). Use YYYY-MM-DD and, if a time is given, HH:MM in 24-hour form, else null. Take the year from the mail whenever it states one, and never assume the current year: a date can be a year or more away. When no year is given, use the next occurrence after the mail's date. Set weekday to the weekday the mail itself names for that date (lowercase English, e.g. "saturday"), or null if it names none. Resolve relative dates ("tomorrow", "next Friday") against the mail's date. Leave out dates in the past, the mail's own send date, and vague ones without a day. Most mails have none.
+- dates: concrete dates in the mail that Tom might want in his task list: events and appointments (kind "event"), deadlines to act by (kind "deadline"), and when an offer, voucher, code or the mail's whole point runs out (kind "expiry"). Give each a short title that works as a task name ("Dentist appointment", "Pay invoice 2026-114", "Voucher expires"). Use YYYY-MM-DD and, if a time is given, HH:MM in 24-hour form, else null. Take the year from the mail whenever it states one, and never assume the current year: a date can be a year or more away. When no year is given, use the next occurrence after the mail's date. Set weekday to the weekday the mail itself names for that date (lowercase English, e.g. "saturday"), or "none" if it names none. Resolve relative dates ("tomorrow", "next Friday") against the mail's date. Leave out dates in the past, the mail's own send date, and vague ones without a day. Most mails have none.
 - expires_on: the day after which the whole mail is no longer useful (an event that has passed, an offer that ran out, a delivery that arrived, a one-time code), as YYYY-MM-DD; null when it stays relevant or you can't tell.`
 
 const SCHEMA = {
@@ -80,7 +80,8 @@ const SCHEMA = {
           title: { type: 'string' },
           date: { type: 'string' },
           time: { type: ['string', 'null'] },
-          weekday: { type: ['string', 'null'], enum: [...WEEKDAYS, null] },
+          // Plain string enum: the API rejects a null inside an enum of type [string, null].
+          weekday: { type: 'string', enum: [...WEEKDAYS, 'none'] },
           kind: { type: 'string', enum: DATE_KINDS }
         }
       }
@@ -270,7 +271,7 @@ function validate(raw: {
     title: string
     date: string
     time: string | null
-    weekday: string | null
+    weekday: string
     kind: MailDate['kind']
   }>
   expires_on: string | null
