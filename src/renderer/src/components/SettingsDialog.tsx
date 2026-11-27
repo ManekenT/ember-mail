@@ -42,10 +42,11 @@ export function SettingsDialog({
       <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>Both are stored encrypted by Windows.</DialogDescription>
+          <DialogDescription>Keys and tokens are stored encrypted by Windows.</DialogDescription>
         </DialogHeader>
         {settings && (
           <div className="grid gap-6">
+            <SenderName />
             <SecretField
               id="claude-key"
               label="Claude API key"
@@ -167,6 +168,38 @@ function SecretField({
           {linkText}
         </button>
       )}
+    </div>
+  )
+}
+
+/** The name on outgoing mail, saved when the field loses focus. */
+function SenderName(): React.JSX.Element {
+  const [name, setName] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    void window.api.getSenderName().then(setName)
+  }, [])
+
+  return (
+    <div className="grid gap-2">
+      <Label htmlFor="sender-name">Your name on sent mail</Label>
+      <div className="flex items-center gap-3">
+        <Input
+          id="sender-name"
+          value={name ?? ''}
+          disabled={name === null}
+          onChange={(e) => {
+            setName(e.target.value)
+            setSaved(false)
+          }}
+          onBlur={() => {
+            if (name === null) return
+            void window.api.setSenderName(name).then(() => setSaved(true))
+          }}
+        />
+        {saved && <Check className="size-4 shrink-0 text-live" />}
+      </div>
     </div>
   )
 }

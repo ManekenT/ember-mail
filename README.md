@@ -31,6 +31,13 @@ npm run build:win  # build the Windows installer into dist/
 - **Archive** moves a mail to the account's Archive folder (the server's `\Archive`
   folder, else a folder named Archive, created if missing). Nothing is ever deleted.
   The toast offers **Undo**.
+- **New mail** (<kbd>C</kbd>) and **Reply** (<kbd>R</kbd>) open the compose screen. Pick the
+  account and type any sender address (aliases on your domain are remembered). A reply
+  starts from the address the mail was sent to, quotes the original and keeps the thread
+  headers. Sent mail is copied to the account's Sent folder. <kbd>Ctrl</kbd>+<kbd>Enter</kbd>
+  sends.
+- Sending needs the account's SMTP server: set it when adding an account, or with the
+  pencil next to an existing account. Your name on sent mail is in **Settings**.
 - Keys: <kbd>J</kbd>/<kbd>K</kbd> move, <kbd>Enter</kbd> open, <kbd>Esc</kbd> back,
   <kbd>E</kbd> archive.
 - HTML mails are sanitized (DOMPurify) and shown in a sandboxed frame that can't run
@@ -53,6 +60,9 @@ npm run build:win  # build the Windows installer into dist/
   spam, promotions, newsletters and expired mail (even unread), and read notifications
   and other mail with no lasting value. Urgent and important mail is never suggested.
   Undo moves everything back.
+- **Draft reply**: the reply screen offers a few one-tap ideas (Haiku 5.5), or type what
+  the reply should say. Claude Opus 5.5 writes it into the body in the mail's language,
+  with placeholders for facts it doesn't know. Nothing is sent without you.
 
 ## Releases and updates
 

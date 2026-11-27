@@ -11,6 +11,7 @@ import { useArchive } from '@renderer/hooks/useArchive'
 import { useMailbox } from '@renderer/hooks/useMailbox'
 import { InboxScreen } from '@renderer/screens/InboxScreen'
 import { cleanError } from '@renderer/lib/errors'
+import { ComposeScreen } from '@renderer/screens/ComposeScreen'
 import { MailScreen } from '@renderer/screens/MailScreen'
 import type { AccountInfo, MailFolder, MailSummary } from '../../shared/types'
 
@@ -23,6 +24,10 @@ function App(): React.JSX.Element {
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [focusKey, setFocusKey] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  /** The account being edited in the account dialog; null adds a new one. */
+  const [editAccount, setEditAccount] = useState<AccountInfo | null>(null)
+  /** Open when writing: a new mail, or a reply to `replyTo`. */
+  const [compose, setCompose] = useState<{ replyTo: MailSummary | null } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   /** Suggestions are taken once when the dialog opens, so the list holds still. */
   const [cleanup, setCleanup] = useState<CleanupSuggestion[] | null>(null)
@@ -200,6 +205,7 @@ function App(): React.JSX.Element {
         addOpen ||
         settingsOpen ||
         cleanup ||
+        compose ||
         target.closest('input, textarea, select, [role="dialog"]')
       )
         return
@@ -218,12 +224,26 @@ function App(): React.JSX.Element {
         if (prev) (openKey ? open : (m: MailSummary) => setFocusKey(m.key))(prev)
       } else if (key === 'enter' && !openKey && index >= 0) open(visible[index])
       else if (key === 'e' && index >= 0) toggleArchive(visible[index])
+      else if (key === 'c' && accounts.length > 0) setCompose({ replyTo: null })
+      else if (key === 'r' && index >= 0) setCompose({ replyTo: visible[index] })
       else return
       event.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [addOpen, settingsOpen, cleanup, openKey, focusKey, visible, open, back, toggleArchive])
+  }, [
+    addOpen,
+    settingsOpen,
+    cleanup,
+    compose,
+    accounts.length,
+    openKey,
+    focusKey,
+    visible,
+    open,
+    back,
+    toggleArchive
+  ])
 
   return (
     <div className="ambient flex h-full flex-col">
@@ -247,17 +267,40 @@ function App(): React.JSX.Element {
           }}
           onAddAccount={() => setAddOpen(true)}
           onRemoveAccount={(account) => void removeAccount(account)}
+          onEditAccount={(account) => {
+            setEditAccount(account)
+            setAddOpen(true)
+          }}
+          onCompose={() => setCompose({ replyTo: null })}
           claudeError={mailbox.ai?.claudeError ?? null}
           onOpenSettings={() => setSettingsOpen(true)}
         />
 
-        {openMail ? (
+        {compose ? (
+          <ComposeScreen
+            key={compose.replyTo?.key ?? 'new'}
+            accounts={accounts}
+            defaultAccountId={selected === 'all' ? null : selected}
+            replyTo={compose.replyTo}
+            hasClaude={mailbox.ai?.hasClaudeKey ?? false}
+            onClose={() => setCompose(null)}
+            onSent={(text) => {
+              setCompose(null)
+              showToast(text)
+            }}
+            onEditAccount={(account) => {
+              setEditAccount(account)
+              setAddOpen(true)
+            }}
+          />
+        ) : openMail ? (
           <MailScreen
             mail={openMail}
             account={accountById.get(openMail.accountId)}
             onBack={back}
             onToggleArchive={toggleArchive}
             hasTodoist={mailbox.ai?.hasTodoistToken ?? false}
+            onReply={(mail) => setCompose({ replyTo: mail })}
             onOpenSettings={() => setSettingsOpen(true)}
           />
         ) : (
@@ -279,7 +322,15 @@ function App(): React.JSX.Element {
         )}
       </div>
 
-      <AddAccountDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => void refresh()} />
+      <AddAccountDialog
+        open={addOpen}
+        onOpenChange={(next) => {
+          setAddOpen(next)
+          if (!next) setEditAccount(null)
+        }}
+        account={editAccount}
+        onSaved={() => void refresh()}
+      />
       <CleanInboxDialog
         open={cleanup !== null}
         onOpenChange={(next) => !next && setCleanup(null)}

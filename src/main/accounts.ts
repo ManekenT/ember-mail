@@ -3,9 +3,16 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import type { AccountInfo, AccountInput } from '../shared/types'
+import type { AccountInfo, AccountInput, AccountUpdate } from '../shared/types'
 
-interface StoredAccount extends AccountInfo {
+interface StoredAccount extends Omit<
+  AccountInfo,
+  'smtpHost' | 'smtpPort' | 'smtpSecure' | 'addresses'
+> {
+  smtpHost?: string
+  smtpPort?: number
+  smtpSecure?: boolean
+  addresses?: string[]
   /** Password encrypted with Electron safeStorage (Windows DPAPI), base64. */
   encryptedPassword: string
 }
@@ -32,7 +39,21 @@ function writeStored(accounts: StoredAccount[]): void {
 
 function toInfo(stored: StoredAccount): AccountInfo {
   const { id, name, email, host, port, secure, user, colorIndex } = stored
-  return { id, name, email, host, port, secure, user, colorIndex }
+  return {
+    id,
+    name,
+    email,
+    host,
+    port,
+    secure,
+    user,
+    colorIndex,
+    // Accounts saved before sending existed have no SMTP settings yet.
+    smtpHost: stored.smtpHost ?? '',
+    smtpPort: stored.smtpPort ?? 465,
+    smtpSecure: stored.smtpSecure ?? true,
+    addresses: stored.addresses ?? []
+  }
 }
 
 /** The lowest colour slot no other account uses. */
@@ -89,4 +110,39 @@ export function saveAccount(input: AccountInput): AccountInfo {
 
 export function deleteAccount(id: string): void {
   writeStored(readStored().filter((a) => a.id !== id))
+}
+
+export function getAccount(id: string): AccountInfo {
+  const account = readStored().find((a) => a.id === id)
+  if (!account) throw new Error(`Unknown account ${id}`)
+  return toInfo(account)
+}
+
+export function updateAccount(id: string, update: AccountUpdate): AccountInfo {
+  const stored = readStored()
+  const index = stored.findIndex((a) => a.id === id)
+  if (index < 0) throw new Error(`Unknown account ${id}`)
+  const { password, ...rest } = update
+  const next: StoredAccount = { ...stored[index], ...rest }
+  if (password) {
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new Error('Secure password storage is not available on this system.')
+    }
+    next.encryptedPassword = safeStorage.encryptString(password).toString('base64')
+  }
+  stored[index] = next
+  writeStored(stored)
+  return toInfo(next)
+}
+
+/** Remembers another address the account sent from, so it is offered next time. */
+export function rememberAddress(id: string, address: string): void {
+  const stored = readStored()
+  const account = stored.find((a) => a.id === id)
+  if (!account) return
+  const lower = address.toLowerCase()
+  const known = [account.email, ...(account.addresses ?? [])].map((a) => a.toLowerCase())
+  if (known.includes(lower)) return
+  account.addresses = [...(account.addresses ?? []), address]
+  writeStored(stored)
 }

@@ -113,10 +113,36 @@ export class AccountConnection {
       from: addresses(parsed.from),
       to: addresses(parsed.to),
       cc: addresses(parsed.cc),
+      replyTo: addresses(parsed.replyTo),
+      messageId: parsed.messageId ?? null,
+      references: Array.isArray(parsed.references)
+        ? parsed.references
+        : parsed.references
+          ? [parsed.references]
+          : [],
       date: (parsed.date ?? new Date()).toISOString(),
       html: typeof parsed.html === 'string' ? parsed.html : null,
       text: parsed.text ?? ''
     }
+  }
+
+  /** Flags a mail as answered after a reply went out. */
+  async markAnswered(uid: number, folder: Folder): Promise<void> {
+    const path = folder === 'archive' ? await this.findArchiveFolder() : INBOX
+    await this.inFolder(path, (client) =>
+      client.messageFlagsAdd(String(uid), ['\\Answered'], { uid: true })
+    )
+  }
+
+  /** Puts a copy of a sent mail into the Sent folder, as other mail apps do. */
+  async saveToSent(raw: Buffer): Promise<void> {
+    const client = this.requireClient()
+    const folders = await client.list()
+    const sent =
+      folders.find((f) => f.specialUse === '\\Sent') ??
+      folders.find((f) => /^(sent|gesendet|sent items|sent messages)$/i.test(f.name))
+    const path = sent?.path ?? (await client.mailboxCreate('Sent')).path
+    await client.append(path, raw, ['\\Seen'])
   }
 
   /**

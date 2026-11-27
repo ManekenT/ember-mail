@@ -41,3 +41,24 @@ export function setSecret(name: SecretName, value: string | null): void {
   }
   writeFileSync(settingsFile(), JSON.stringify(stored, null, 2), 'utf8')
 }
+
+/** Plain (not secret) preferences. */
+interface Preferences {
+  senderName?: string
+}
+
+const prefsFile = (): string => join(app.getPath('userData'), 'preferences.json')
+
+export function getPreferences(): Preferences {
+  try {
+    return existsSync(prefsFile())
+      ? (JSON.parse(readFileSync(prefsFile(), 'utf8')) as Preferences)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+export function setPreferences(patch: Preferences): void {
+  writeFileSync(prefsFile(), JSON.stringify({ ...getPreferences(), ...patch }, null, 2), 'utf8')
+}

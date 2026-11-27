@@ -1,4 +1,4 @@
-import { Archive, Inbox, Plus, Settings, Sparkles, Trash2 } from 'lucide-react'
+import { Archive, Inbox, PenLine, Pencil, Plus, Settings, Sparkles, Trash2 } from 'lucide-react'
 
 import { UpdateButton } from '@renderer/components/UpdateButton'
 import { useUpdates } from '@renderer/hooks/useUpdates'
@@ -18,6 +18,8 @@ interface SidebarProps {
   onSelect: (accountId: string) => void
   onAddAccount: () => void
   onRemoveAccount: (account: AccountInfo) => void
+  onEditAccount: (account: AccountInfo) => void
+  onCompose: () => void
   /** Why Claude's analysis is paused, if it is. */
   claudeError: string | null
   onOpenSettings: () => void
@@ -33,6 +35,8 @@ export function Sidebar({
   onSelect,
   onAddAccount,
   onRemoveAccount,
+  onEditAccount,
+  onCompose,
   claudeError,
   onOpenSettings
 }: SidebarProps): React.JSX.Element {
@@ -42,6 +46,16 @@ export function Sidebar({
 
   return (
     <aside className="sheen flex min-h-0 w-[244px] shrink-0 flex-col gap-5 overflow-auto rounded-2xl border border-hairline/[.07] bg-glass/45 px-3 py-3 backdrop-blur-2xl backdrop-saturate-150">
+      <Button
+        onClick={onCompose}
+        className="w-full justify-start gap-3 px-3.5"
+        disabled={accounts.length === 0}
+      >
+        <PenLine />
+        New mail
+        <span className="ml-auto font-mono text-[10.5px] text-primary-foreground/70">C</span>
+      </Button>
+
       <nav className="grid gap-0.5">
         <div className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[.08em] text-muted-foreground/80 uppercase">
           Mailboxes
@@ -95,15 +109,26 @@ export function Sidebar({
                 </span>
                 <Count value={unread(account.id)} />
               </NavItem>
-              <button
-                type="button"
-                title={`Remove ${account.name}`}
-                aria-label={`Remove ${account.name}`}
-                onClick={() => onRemoveAccount(account)}
-                className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded-full p-1.5 text-muted-foreground group-hover:block hover:bg-hairline/[.08] hover:text-foreground"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+              <div className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 gap-0.5 rounded-full bg-glass/90 group-hover:flex">
+                <button
+                  type="button"
+                  title={`Edit ${account.name}`}
+                  aria-label={`Edit ${account.name}`}
+                  onClick={() => onEditAccount(account)}
+                  className="rounded-full p-1.5 text-muted-foreground hover:bg-hairline/[.08] hover:text-foreground"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title={`Remove ${account.name}`}
+                  aria-label={`Remove ${account.name}`}
+                  onClick={() => onRemoveAccount(account)}
+                  className="rounded-full p-1.5 text-muted-foreground hover:bg-hairline/[.08] hover:text-foreground"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              </div>
             </div>
           )
         })}
