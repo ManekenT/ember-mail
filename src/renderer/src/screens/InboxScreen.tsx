@@ -58,19 +58,19 @@ export function InboxScreen({
     <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-hairline/[.06] bg-background/70">
       {/* One scroller: the frosted header sticks on top and rows scroll beneath it. */}
       <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-        <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-3 border-b border-hairline/[.07] bg-glass/55 px-8 pt-5 pb-4 backdrop-blur-2xl backdrop-saturate-150">
-          <div className="grid gap-0.5">
-            <h1 className="text-[26px] font-semibold tracking-tight">{title}</h1>
-            <p className="text-[13px] text-muted-foreground">
+        <header className="sticky top-0 z-10 flex min-h-14 flex-wrap items-center gap-x-4 gap-y-2 border-b border-hairline/[.07] bg-glass/55 px-8 py-3 backdrop-blur-2xl backdrop-saturate-150">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
+            <p className="shrink-0 text-[13px] text-muted-foreground">
               {inArchive
                 ? archive?.query.trim()
                   ? `${mails.length}${archive.hasMore ? '+' : ''} found`
-                  : `${mails.length}${archive?.hasMore ? '+' : ''} archived ${mails.length === 1 ? 'mail' : 'mails'} · nothing is ever deleted`
+                  : `${mails.length}${archive?.hasMore ? '+' : ''} archived ${mails.length === 1 ? 'mail' : 'mails'}`
                 : `${mails.length} ${mails.length === 1 ? 'mail' : 'mails'} · ${unread} unread`}
             </p>
           </div>
           {archive && accounts.length > 0 && (
-            <div className="relative ml-auto w-72">
+            <div className="relative ml-auto w-64">
               {archive.loading ? (
                 <LoaderCircle className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
               ) : (
@@ -82,7 +82,7 @@ export function InboxScreen({
                 onKeyDown={(e) => e.key === 'Escape' && archive.setQuery('')}
                 placeholder="Search the archive"
                 aria-label="Search the archive"
-                className="h-9 rounded-full border-hairline/10 bg-glass/50 pr-8 pl-9 backdrop-blur-xl"
+                className="h-8 rounded-full border-hairline/10 bg-glass/50 pr-8 pl-9 backdrop-blur-xl"
               />
               {archive.query && (
                 <button

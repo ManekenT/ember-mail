@@ -1,21 +1,19 @@
 import { AlertCircle, Check, Download, LoaderCircle, RefreshCw, Rocket } from 'lucide-react'
 
-import { useUpdates } from '@renderer/hooks/useUpdates'
 import { cn } from '@renderer/lib/utils'
+import type { UpdateState } from '../../../shared/types'
 
 /**
  * One button that changes with the update: "Check for updates" → "Checking…" →
  * a download progress fill → "Install x.y.z and restart". The app also checks on its own every few
  * hours and downloads in the background; then this button just shows where it is.
  */
-export function UpdateButton(): React.JSX.Element | null {
-  const state = useUpdates()
-  if (!state) return null
-  const { phase, currentVersion, canInstall } = state
+export function UpdateButton({ state }: { state: UpdateState }): React.JSX.Element {
+  const { phase, canInstall } = state
 
   let icon = <RefreshCw />
   let label: React.ReactNode = 'Check for updates'
-  let status = 'Checks every few hours'
+  let status = ''
   let action: (() => void) | undefined = () => void window.api.checkForUpdates()
   let tone: 'quiet' | 'busy' | 'ready' | 'error' = 'quiet'
 
@@ -29,7 +27,6 @@ export function UpdateButton(): React.JSX.Element | null {
     case 'up-to-date':
       icon = <Check className="text-live" />
       label = 'Up to date'
-      status = 'Checked just now'
       break
     case 'downloading':
       icon = <Download />
@@ -39,14 +36,13 @@ export function UpdateButton(): React.JSX.Element | null {
           <span className="text-muted-foreground tabular-nums">{phase.percent}%</span>
         </>
       )
-      status = 'Downloading'
       action = undefined
       tone = 'busy'
       break
     case 'ready':
       icon = <Rocket />
       label = canInstall ? `Install ${phase.version} and restart` : `${phase.version} downloaded`
-      status = canInstall ? 'Ready to install' : 'Installs only in the installed app'
+      status = canInstall ? '' : 'Installs only in the installed app'
       action = canInstall ? () => void window.api.installUpdate() : undefined
       tone = 'ready'
       break
@@ -89,12 +85,17 @@ export function UpdateButton(): React.JSX.Element | null {
           <span className="truncate">{label}</span>
         </span>
       </button>
-      <div className="mt-1.5 flex justify-between gap-2 px-1 text-[11px] text-muted-foreground/80">
-        <span className="shrink-0">Ember Mail {currentVersion}</span>
-        <span className="truncate" title={status}>
+      {status && (
+        <p
+          className={cn(
+            'mt-1.5 truncate px-1 text-center text-[11px]',
+            phase.status === 'error' ? 'text-destructive' : 'text-muted-foreground/80'
+          )}
+          title={status}
+        >
           {status}
-        </span>
-      </div>
+        </p>
+      )}
     </div>
   )
 }
