@@ -1,4 +1,4 @@
-import { Archive, ChevronLeft } from 'lucide-react'
+import { Archive, ChevronLeft, Inbox } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { Avatar } from '@renderer/components/Avatar'
@@ -15,7 +15,8 @@ interface MailScreenProps {
   account: AccountInfo | undefined
   position: { index: number; total: number }
   onBack: () => void
-  onArchive: (mail: MailSummary) => void
+  /** Archives an inbox mail, or moves an archived mail back to the inbox. */
+  onToggleArchive: (mail: MailSummary) => void
 }
 
 export function MailScreen({
@@ -23,7 +24,7 @@ export function MailScreen({
   account,
   position,
   onBack,
-  onArchive
+  onToggleArchive
 }: MailScreenProps): React.JSX.Element {
   const [detail, setDetail] = useState<MailDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -34,27 +35,28 @@ export function MailScreen({
     setDetail(null)
     setError(null)
     window.api
-      .getMail(mail.accountId, mail.uid)
+      .getMail(mail.accountId, mail.uid, mail.folder)
       .then((result) => !cancelled && setDetail(result))
       .catch((e: Error) => !cancelled && setError(cleanError(e)))
     return () => {
       cancelled = true
     }
-  }, [mail.accountId, mail.uid])
+  }, [mail.accountId, mail.uid, mail.folder])
 
   const sender = detail?.from[0]
+  const inArchive = mail.folder === 'archive'
 
   return (
     <main className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b px-4 py-2.5">
         <Button variant="ghost" className="px-3" onClick={onBack}>
           <ChevronLeft />
-          Inbox <Kbd>Esc</Kbd>
+          {inArchive ? 'Archive' : 'Inbox'} <Kbd>Esc</Kbd>
         </Button>
         <div className="mx-2 h-5 w-px bg-border" />
-        <Button onClick={() => onArchive(mail)}>
-          <Archive />
-          Archive
+        <Button onClick={() => onToggleArchive(mail)}>
+          {inArchive ? <Inbox /> : <Archive />}
+          {inArchive ? 'Move to inbox' : 'Archive'}
           <Kbd className="border-primary-foreground/30 bg-transparent text-primary-foreground">
             E
           </Kbd>
@@ -70,7 +72,7 @@ export function MailScreen({
             {mail.subject}
           </h1>
           <div className="flex items-start gap-3">
-            <Avatar name={mail.fromName} />
+            <Avatar name={mail.fromName} address={sender?.address || mail.fromAddress} />
             <div className="grid min-w-0 gap-0.5">
               <div className="font-semibold">
                 {sender?.name || mail.fromName}{' '}

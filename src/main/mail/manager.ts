@@ -1,7 +1,7 @@
 import { BrowserWindow, Notification } from 'electron'
 
 import { getPassword, listAccounts } from '../accounts'
-import type { AccountInfo, AccountStatus, MailSummary } from '../../shared/types'
+import type { AccountInfo, AccountStatus, ArchivePage, MailSummary } from '../../shared/types'
 import { AccountConnection } from './connection'
 
 /** Owns one live connection per account and merges their inboxes. */
@@ -44,6 +44,27 @@ export class MailManager {
     return [...this.connections.values()]
       .flatMap((c) => c.list())
       .sort((a, b) => b.date.localeCompare(a.date))
+  }
+
+  /**
+   * Archived mail of every connected account. Each account contributes its `limit` most
+   * recently archived mails; the combined list is sorted by mail date. Accounts that
+   * are offline or fail are left out rather than failing the whole view.
+   */
+  async archive(limit: number, query?: string): Promise<ArchivePage> {
+    const live = [...this.connections.values()].filter((c) => c.status.state === 'live')
+    const pages = await Promise.all(
+      live.map((c) =>
+        c.listArchive(limit, query).catch((error) => {
+          console.error(`[${c.account.name}] archive failed`, error)
+          return { mails: [], hasMore: false }
+        })
+      )
+    )
+    return {
+      mails: pages.flatMap((p) => p.mails).sort((a, b) => b.date.localeCompare(a.date)),
+      hasMore: pages.some((p) => p.hasMore)
+    }
   }
 
   connection(accountId: string): AccountConnection {

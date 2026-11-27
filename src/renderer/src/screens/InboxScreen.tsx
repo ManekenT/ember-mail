@@ -1,34 +1,45 @@
-import { Archive } from 'lucide-react'
+import { Archive, Inbox, LoaderCircle, Search, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
 import { Avatar } from '@renderer/components/Avatar'
 import { EmberLogo } from '@renderer/components/EmberLogo'
 import { Button } from '@renderer/components/ui/button'
-import { dayGroup, shortTime } from '@renderer/lib/format'
+import { Input } from '@renderer/components/ui/input'
+import type { ArchiveList } from '@renderer/hooks/useArchive'
+import { dayGroup, monthGroup, shortTime } from '@renderer/lib/format'
 import { cn } from '@renderer/lib/utils'
-import type { AccountInfo, MailSummary } from '../../../shared/types'
+import type { AccountInfo, MailFolder, MailSummary } from '../../../shared/types'
 
 interface InboxScreenProps {
   title: string
+  folder: MailFolder
   mails: MailSummary[]
   accounts: AccountInfo[]
   loaded: boolean
+  /** Search and paging, only in the archive view. */
+  archive?: ArchiveList
   focusKey: string | null
   onOpen: (mail: MailSummary) => void
-  onArchive: (mail: MailSummary) => void
+  /** Archives an inbox mail, or moves an archived mail back to the inbox. */
+  onToggleArchive: (mail: MailSummary) => void
   onAddAccount: () => void
 }
 
+/** The mail list, for the inboxes and for the archive. */
 export function InboxScreen({
   title,
+  folder,
   mails,
   accounts,
   loaded,
+  archive,
   focusKey,
   onOpen,
-  onArchive,
+  onToggleArchive,
   onAddAccount
 }: InboxScreenProps): React.JSX.Element {
+  const inArchive = folder === 'archive'
+  const group = inArchive ? monthGroup : dayGroup
   const accountById = new Map(accounts.map((a) => [a.id, a]))
   const unread = mails.filter((m) => m.unread).length
   const focusRef = useRef<HTMLDivElement>(null)
@@ -39,7 +50,7 @@ export function InboxScreen({
 
   const showDayFor = new Set(
     mails
-      .filter((mail, i) => i === 0 || dayGroup(mail.date) !== dayGroup(mails[i - 1].date))
+      .filter((mail, i) => i === 0 || group(mail.date) !== group(mails[i - 1].date))
       .map((mail) => mail.key)
   )
 
@@ -49,9 +60,40 @@ export function InboxScreen({
         <div className="grid gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
           <p className="text-sm text-muted-foreground">
-            {mails.length} {mails.length === 1 ? 'mail' : 'mails'} · {unread} unread
+            {inArchive
+              ? archive?.query.trim()
+                ? `${mails.length}${archive.hasMore ? '+' : ''} found`
+                : `${mails.length}${archive?.hasMore ? '+' : ''} archived ${mails.length === 1 ? 'mail' : 'mails'} · nothing is ever deleted`
+              : `${mails.length} ${mails.length === 1 ? 'mail' : 'mails'} · ${unread} unread`}
           </p>
         </div>
+        {archive && accounts.length > 0 && (
+          <div className="relative ml-auto w-72">
+            {archive.loading ? (
+              <LoaderCircle className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+            ) : (
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            )}
+            <Input
+              value={archive.query}
+              onChange={(e) => archive.setQuery(e.target.value)}
+              onKeyDown={(e) => e.key === 'Escape' && archive.setQuery('')}
+              placeholder="Search the archive"
+              aria-label="Search the archive"
+              className="rounded-full pr-8 pl-9"
+            />
+            {archive.query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => archive.setQuery('')}
+                className="absolute top-1/2 right-2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       {accounts.length === 0 ? (
@@ -60,11 +102,28 @@ export function InboxScreen({
           text="Ember Mail works with any IMAP account. Your password is stored encrypted by Windows."
           action={<Button onClick={onAddAccount}>Add account</Button>}
         />
-      ) : !loaded ? null : mails.length === 0 ? (
+      ) : archive?.error && mails.length === 0 ? (
         <EmptyState
-          title="Inbox zero"
-          text="Everything is read and archived. Nothing was deleted."
+          title="The archive didn't load"
+          text={archive.error}
+          action={<Button onClick={archive.reload}>Try again</Button>}
         />
+      ) : !loaded ? null : mails.length === 0 ? (
+        inArchive ? (
+          <EmptyState
+            title={archive?.query.trim() ? 'Nothing found' : 'The archive is empty'}
+            text={
+              archive?.query.trim()
+                ? 'No archived mail matches. The search looks at sender, subject and text.'
+                : 'Mail you archive lands here, and you can move it back to the inbox any time.'
+            }
+          />
+        ) : (
+          <EmptyState
+            title="Inbox zero"
+            text="Everything is read and archived. Nothing was deleted."
+          />
+        )
       ) : (
         <div className="min-h-0 flex-1 overflow-auto px-6 pb-8">
           {mails.map((mail) => {
@@ -75,7 +134,7 @@ export function InboxScreen({
               <div key={mail.key}>
                 {showDay && (
                   <div className="px-4 pt-6 pb-2 text-xs font-medium text-muted-foreground">
-                    {dayGroup(mail.date)}
+                    {group(mail.date)}
                   </div>
                 )}
                 <div
@@ -92,6 +151,7 @@ export function InboxScreen({
                 >
                   <Avatar
                     name={mail.fromName}
+                    address={mail.fromAddress}
                     colorIndex={account?.colorIndex}
                     accountName={account?.name}
                   />
@@ -124,20 +184,28 @@ export function InboxScreen({
                       variant="outline"
                       size="icon"
                       className="size-8"
-                      title="Archive (E)"
-                      aria-label="Archive"
+                      title={inArchive ? 'Move to inbox (E)' : 'Archive (E)'}
+                      aria-label={inArchive ? 'Move to inbox' : 'Archive'}
                       onClick={(e) => {
                         e.stopPropagation()
-                        onArchive(mail)
+                        onToggleArchive(mail)
                       }}
                     >
-                      <Archive />
+                      {inArchive ? <Inbox /> : <Archive />}
                     </Button>
                   </div>
                 </div>
               </div>
             )
           })}
+          {archive?.hasMore && (
+            <div className="grid place-items-center pt-6">
+              <Button variant="outline" disabled={archive.loading} onClick={archive.loadMore}>
+                {archive.loading && <LoaderCircle className="animate-spin" />}
+                Load older mail
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </main>

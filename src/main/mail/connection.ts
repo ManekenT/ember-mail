@@ -25,14 +25,21 @@ export interface ConnectionEvents {
   onNewMail: (mail: MailSummary) => void
 }
 
+type Folder = MailSummary['folder']
+
 /**
  * One live IMAP connection per account. Keeps INBOX selected so the server can
  * push changes (IDLE), and keeps an in-memory list of the INBOX messages.
+ * Every command runs under a mailbox lock, so a quick look into the Archive
+ * folder never mixes with inbox commands; afterwards INBOX is selected again.
  */
 export class AccountConnection {
   status: AccountStatus = { state: 'connecting' }
   private client: ImapFlow | null = null
   private messages = new Map<number, MailSummary>()
+  /** Summaries of archived mails already fetched, by UID, for "Load more". */
+  private archived = new Map<number, MailSummary>()
+  private archiveUidValidity: bigint | null = null
   private archivePath: string | null = null
   private initialSyncDone = false
   /** UIDs that reappear in the inbox because of an undo; no notification for those. */
@@ -65,18 +72,20 @@ export class AccountConnection {
     return [...this.messages.values()]
   }
 
-  async getMail(uid: number): Promise<MailDetail> {
-    const client = this.requireClient()
-    const message = await client.fetchOne(String(uid), { source: true }, { uid: true })
-    if (!message || !message.source) throw new Error('This mail no longer exists.')
-    const parsed = await simpleParser(message.source)
+  async getMail(uid: number, folder: Folder = 'inbox'): Promise<MailDetail> {
+    const path = folder === 'archive' ? await this.findArchiveFolder() : INBOX
+    const parsed = await this.inFolder(path, async (client) => {
+      const message = await client.fetchOne(String(uid), { source: true }, { uid: true })
+      if (!message || !message.source) throw new Error('This mail no longer exists.')
 
-    const summary = this.messages.get(uid)
-    if (summary?.unread) {
-      await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true })
-      this.messages.set(uid, { ...summary, unread: false })
-      this.events.onChange()
-    }
+      const summary = folder === 'inbox' ? this.messages.get(uid) : this.archived.get(uid)
+      if (summary?.unread) {
+        await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true })
+        summary.unread = false
+        this.events.onChange()
+      }
+      return simpleParser(message.source)
+    })
 
     return {
       accountId: this.account.id,
@@ -96,30 +105,65 @@ export class AccountConnection {
    * mail's UID in the archive (when the server reports it) so it can be undone.
    */
   async archive(uid: number): Promise<ArchiveResult> {
-    const client = this.requireClient()
-    const archivePath = await this.findArchiveFolder(client)
-    const moved = await client.messageMove(String(uid), archivePath, { uid: true })
+    const archivePath = await this.findArchiveFolder()
+    const moved = await this.inFolder(INBOX, (client) =>
+      client.messageMove(String(uid), archivePath, { uid: true })
+    )
     if (!moved) throw new Error('The mail could not be moved to the archive.')
     this.messages.delete(uid)
     this.events.onChange()
     return { archivePath, archivedUid: moved.uidMap?.get(uid) ?? null }
   }
 
-  /** Moves an archived mail back to the inbox. */
-  async undoArchive(archivedUid: number): Promise<void> {
-    const client = this.requireClient()
-    const archivePath = await this.findArchiveFolder(client)
-    const lock = await client.getMailboxLock(archivePath)
-    try {
+  /** Moves an archived mail back to the inbox. Returns its new inbox UID, if the server said. */
+  async moveToInbox(archivedUid: number): Promise<number | null> {
+    const archivePath = await this.findArchiveFolder()
+    const inboxUid = await this.inFolder(archivePath, async (client) => {
       const moved = await client.messageMove(String(archivedUid), INBOX, { uid: true })
-      const inboxUid = moved ? moved.uidMap?.get(archivedUid) : undefined
-      if (inboxUid !== undefined) this.quietUids.add(inboxUid)
-    } finally {
-      lock.release()
-      // Go back to watching the inbox.
-      await client.mailboxOpen(INBOX)
-    }
+      if (!moved) throw new Error('The mail could not be moved to the inbox.')
+      const uid = moved.uidMap?.get(archivedUid)
+      if (uid !== undefined) this.quietUids.add(uid)
+      return uid ?? null
+    })
+    this.archived.delete(archivedUid)
     await this.sync()
+    return inboxUid
+  }
+
+  /**
+   * The newest `limit` archived mails, by archive order (newest UID first). With a
+   * query, the server searches sender, subject and body instead.
+   */
+  async listArchive(
+    limit: number,
+    query?: string
+  ): Promise<{ mails: MailSummary[]; hasMore: boolean }> {
+    const archivePath = await this.findArchiveFolder()
+    return this.inFolder(archivePath, async (client) => {
+      const validity = client.mailbox ? client.mailbox.uidValidity : null
+      if (validity !== this.archiveUidValidity) {
+        this.archived.clear()
+        this.archiveUidValidity = validity
+      }
+
+      const criteria = query
+        ? { or: [{ from: query }, { subject: query }, { body: query }] }
+        : { all: true }
+      const found = (await client.search(criteria, { uid: true })) || []
+      const uids = found.sort((a, b) => b - a)
+      const page = uids.slice(0, limit)
+
+      const missing = page.filter((uid) => !this.archived.has(uid))
+      if (missing.length > 0) {
+        const fetched = await client.fetchAll(missing.join(','), SUMMARY_QUERY, { uid: true })
+        for (const message of fetched) {
+          this.archived.set(message.uid, await this.toSummary(message, 'archive'))
+        }
+      }
+
+      const mails = page.flatMap((uid) => this.archived.get(uid) ?? [])
+      return { mails, hasMore: uids.length > page.length }
+    })
   }
 
   private requireClient(): ImapFlow {
@@ -127,6 +171,23 @@ export class AccountConnection {
       throw new Error(`${this.account.name} is not connected right now.`)
     }
     return this.client
+  }
+
+  /** Runs `task` with `path` selected. Leaving another folder goes back to watching INBOX. */
+  private async inFolder<T>(path: string, task: (client: ImapFlow) => Promise<T>): Promise<T> {
+    const client = this.requireClient()
+    const lock = await client.getMailboxLock(path)
+    try {
+      return await task(client)
+    } finally {
+      lock.release()
+      if (path !== INBOX) {
+        // Select INBOX again so IDLE watches it, and catch up on anything missed.
+        const back = await client.getMailboxLock(INBOX).catch(() => null)
+        back?.release()
+        this.queueSync()
+      }
+    }
   }
 
   private async connect(): Promise<void> {
@@ -144,7 +205,7 @@ export class AccountConnection {
     })
     this.client = client
 
-    // Only react to the inbox; undo briefly opens the Archive folder.
+    // Only react to the inbox; the Archive folder is opened briefly to browse or restore.
     client.on('exists', (event) => event.path === INBOX && this.queueSync())
     client.on('expunge', (event) => event.path === INBOX && this.queueSync())
     client.on('flags', (event) => event.path === INBOX && this.queueSync())
@@ -189,9 +250,8 @@ export class AccountConnection {
   }
 
   private async sync(): Promise<void> {
-    const client = this.client
-    if (!client) return
-    const run = this.syncOnce(client)
+    if (!this.client || this.status.state !== 'live') return
+    const run = this.inFolder(INBOX, (client) => this.syncOnce(client))
       .catch((error) => console.error(`[${this.account.name}] sync failed`, error))
       .finally(() => {
         this.syncRunning = null
@@ -206,8 +266,6 @@ export class AccountConnection {
 
   private async syncOnce(client: ImapFlow): Promise<void> {
     const mailbox = client.mailbox
-    // Another folder is open for a moment (undo); the inbox is synced again afterwards.
-    if (mailbox && mailbox.path !== INBOX) return
     if (!mailbox || mailbox.exists === 0) {
       this.messages.clear()
       this.initialSyncDone = true
@@ -231,19 +289,9 @@ export class AccountConnection {
     const newUids = current.filter((m) => !this.messages.has(m.uid)).map((m) => m.uid)
     const added: MailSummary[] = []
     if (newUids.length > 0) {
-      const fetched = await client.fetchAll(
-        newUids.join(','),
-        {
-          uid: true,
-          flags: true,
-          envelope: true,
-          internalDate: true,
-          source: { maxLength: PREVIEW_BYTES }
-        },
-        { uid: true }
-      )
+      const fetched = await client.fetchAll(newUids.join(','), SUMMARY_QUERY, { uid: true })
       for (const message of fetched) {
-        const summary = await this.toSummary(message)
+        const summary = await this.toSummary(message, 'inbox')
         this.messages.set(summary.uid, summary)
         added.push(summary)
       }
@@ -259,12 +307,13 @@ export class AccountConnection {
     this.quietUids.clear()
   }
 
-  private async toSummary(message: FetchMessageObject): Promise<MailSummary> {
+  private async toSummary(message: FetchMessageObject, folder: Folder): Promise<MailSummary> {
     const from = message.envelope?.from?.[0]
     const date = message.envelope?.date ?? message.internalDate ?? new Date()
     return {
-      key: `${this.account.id}:${message.uid}`,
+      key: `${this.account.id}:${folder}:${message.uid}`,
       accountId: this.account.id,
+      folder,
       uid: message.uid,
       fromName: from?.name || from?.address || 'Unknown sender',
       fromAddress: from?.address ?? '',
@@ -275,8 +324,9 @@ export class AccountConnection {
     }
   }
 
-  private async findArchiveFolder(client: ImapFlow): Promise<string> {
+  private async findArchiveFolder(): Promise<string> {
     if (this.archivePath) return this.archivePath
+    const client = this.requireClient()
     const folders = await client.list()
     const found =
       folders.find((f) => f.specialUse === '\\Archive') ??
@@ -291,6 +341,14 @@ export class AccountConnection {
     return this.archivePath
   }
 }
+
+const SUMMARY_QUERY = {
+  uid: true,
+  flags: true,
+  envelope: true,
+  internalDate: true,
+  source: { maxLength: PREVIEW_BYTES }
+} as const
 
 async function previewText(source: Buffer): Promise<string> {
   try {
