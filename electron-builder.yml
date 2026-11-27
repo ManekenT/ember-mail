@@ -23,4 +23,8 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
 npmRebuild: false
-publish: null
+publish:
+  provider: github
+  owner: ManekenT
+  repo: ember-mail
+  releaseType: release
