@@ -1,85 +1,164 @@
-import { Inbox, Plus } from 'lucide-react'
+import { Archive } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 
+import { Avatar } from '@renderer/components/Avatar'
+import { EmberLogo } from '@renderer/components/EmberLogo'
 import { Button } from '@renderer/components/ui/button'
-import type { MailSummary } from '@renderer/demo-data'
+import { dayGroup, shortTime } from '@renderer/lib/format'
 import { cn } from '@renderer/lib/utils'
+import type { AccountInfo, MailSummary } from '../../../shared/types'
 
 interface InboxScreenProps {
+  title: string
   mails: MailSummary[]
-  onOpen: (id: string) => void
+  accounts: AccountInfo[]
+  loaded: boolean
+  focusKey: string | null
+  onOpen: (mail: MailSummary) => void
+  onArchive: (mail: MailSummary) => void
+  onAddAccount: () => void
 }
 
-export function InboxScreen({ mails, onOpen }: InboxScreenProps): React.JSX.Element {
+export function InboxScreen({
+  title,
+  mails,
+  accounts,
+  loaded,
+  focusKey,
+  onOpen,
+  onArchive,
+  onAddAccount
+}: InboxScreenProps): React.JSX.Element {
+  const accountById = new Map(accounts.map((a) => [a.id, a]))
+  const unread = mails.filter((m) => m.unread).length
+  const focusRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    focusRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [focusKey])
+
+  const showDayFor = new Set(
+    mails
+      .filter((mail, i) => i === 0 || dayGroup(mail.date) !== dayGroup(mails[i - 1].date))
+      .map((mail) => mail.key)
+  )
+
   return (
-    <div className="flex h-full">
-      <aside className="flex w-[232px] shrink-0 flex-col gap-6 border-r border-sidebar-border bg-sidebar px-3 py-5 text-sidebar-foreground">
-        <div className="flex items-center gap-2.5 px-3 text-base font-semibold">
-          <span
-            aria-hidden="true"
-            className="size-3.5 rounded-full bg-[radial-gradient(circle_at_35%_35%,#ffd27a,var(--primary))] shadow-[0_0_12px_var(--primary)]"
-          />
-          Ember Mail
+    <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <header className="flex items-end gap-4 border-b px-10 pt-7 pb-5">
+        <div className="grid gap-1">
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+          <p className="text-sm text-muted-foreground">
+            {mails.length} {mails.length === 1 ? 'mail' : 'mails'} · {unread} unread
+          </p>
         </div>
-        <nav className="flex flex-1 flex-col gap-1">
-          <Button variant="secondary" className="justify-start">
-            <Inbox />
-            All inboxes
-          </Button>
-        </nav>
-        <Button variant="ghost" className="justify-start text-muted-foreground" disabled>
-          <Plus />
-          Add account
-        </Button>
-      </aside>
+      </header>
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-baseline justify-between px-10 pt-7 pb-4">
-          <h1 className="text-2xl font-semibold tracking-tight">Inbox</h1>
-          <span className="text-sm text-muted-foreground">{mails.length} mails</span>
-        </header>
-
-        {mails.length === 0 ? (
-          <div className="m-auto text-muted-foreground">Inbox Zero. Nice.</div>
-        ) : (
-          <ul className="flex-1 overflow-y-auto px-6 pb-6">
-            {mails.map((mail) => (
-              <li key={mail.id}>
-                <button
-                  onClick={() => onOpen(mail.id)}
-                  className="group flex w-full items-start gap-4 rounded-lg px-4 py-4 text-left transition-colors hover:bg-accent"
+      {accounts.length === 0 ? (
+        <EmptyState
+          title="Add your first account"
+          text="Ember Mail works with any IMAP account. Your password is stored encrypted by Windows."
+          action={<Button onClick={onAddAccount}>Add account</Button>}
+        />
+      ) : !loaded ? null : mails.length === 0 ? (
+        <EmptyState
+          title="Inbox zero"
+          text="Everything is read and archived. Nothing was deleted."
+        />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-auto px-6 pb-8">
+          {mails.map((mail) => {
+            const account = accountById.get(mail.accountId)
+            const showDay = showDayFor.has(mail.key)
+            const focused = mail.key === focusKey
+            return (
+              <div key={mail.key}>
+                {showDay && (
+                  <div className="px-4 pt-6 pb-2 text-xs font-medium text-muted-foreground">
+                    {dayGroup(mail.date)}
+                  </div>
+                )}
+                <div
+                  ref={focused ? focusRef : undefined}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open ${mail.fromName}: ${mail.subject}`}
+                  onClick={() => onOpen(mail)}
+                  onKeyDown={(e) => e.key === 'Enter' && onOpen(mail)}
+                  className={cn(
+                    'group relative flex cursor-pointer items-start gap-4 rounded-lg px-4 py-4 transition-colors hover:bg-accent',
+                    focused && 'bg-accent ring-1 ring-border ring-inset'
+                  )}
                 >
-                  <span
-                    aria-hidden="true"
-                    className={cn(
-                      'mt-2 size-2 shrink-0 rounded-full',
-                      mail.unread ? 'bg-primary' : 'bg-transparent'
-                    )}
+                  <Avatar
+                    name={mail.fromName}
+                    colorIndex={account?.colorIndex}
+                    accountName={account?.name}
                   />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-baseline justify-between gap-4">
-                      <span className={cn('truncate text-[15px]', mail.unread && 'font-semibold')}>
-                        {mail.from}
+                  <div className="grid min-w-0 flex-1 gap-1">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn(
+                          'truncate text-[15px]',
+                          mail.unread ? 'font-semibold' : 'font-medium text-muted-foreground'
+                        )}
+                      >
+                        {mail.fromName}
                       </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{mail.date}</span>
-                    </span>
-                    <span
-                      className={cn(
-                        'mt-0.5 block truncate text-[15px]',
-                        mail.unread && 'font-medium'
+                      <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums group-hover:invisible">
+                        {shortTime(mail.date)}
+                      </span>
+                    </div>
+                    <div className={cn('truncate text-[15px]', mail.unread && 'font-semibold')}>
+                      {mail.unread && (
+                        <span className="mr-2 inline-block size-2 -translate-y-px rounded-full bg-primary" />
                       )}
-                    >
                       {mail.subject}
-                    </span>
-                    <span className="mt-0.5 block truncate text-sm text-muted-foreground">
+                    </div>
+                    <div className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
                       {mail.preview}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </main>
+                    </div>
+                  </div>
+                  <div className="absolute top-3 right-3 hidden gap-1 group-hover:flex">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="size-8"
+                      title="Archive (E)"
+                      aria-label="Archive"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onArchive(mail)
+                      }}
+                    >
+                      <Archive />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </main>
+  )
+}
+
+function EmptyState({
+  title,
+  text,
+  action
+}: {
+  title: string
+  text: string
+  action?: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <div className="grid flex-1 animate-in place-content-center justify-items-center gap-3 text-center fade-in">
+      <EmberLogo size={72} />
+      <p className="text-2xl font-semibold tracking-tight">{title}</p>
+      <p className="max-w-[36ch] text-sm leading-relaxed text-muted-foreground">{text}</p>
+      {action}
     </div>
   )
 }

@@ -1,0 +1,153 @@
+import { Inbox, Plus, Trash2 } from 'lucide-react'
+
+import { Button } from '@renderer/components/ui/button'
+import { accountDot } from '@renderer/lib/format'
+import { cn } from '@renderer/lib/utils'
+import type { AccountInfo, AccountStatus, MailSummary } from '../../../shared/types'
+
+interface SidebarProps {
+  accounts: AccountInfo[]
+  statuses: Record<string, AccountStatus>
+  inbox: MailSummary[]
+  selected: string
+  onSelect: (accountId: string) => void
+  onAddAccount: () => void
+  onRemoveAccount: (account: AccountInfo) => void
+}
+
+export function Sidebar({
+  accounts,
+  statuses,
+  inbox,
+  selected,
+  onSelect,
+  onAddAccount,
+  onRemoveAccount
+}: SidebarProps): React.JSX.Element {
+  const unread = (accountId: string): number =>
+    inbox.filter((m) => m.unread && (accountId === 'all' || m.accountId === accountId)).length
+
+  return (
+    <aside className="flex min-h-0 w-[232px] shrink-0 flex-col gap-5 overflow-auto border-r bg-card px-3 py-3">
+      <nav className="grid gap-0.5">
+        <div className="mb-1 px-2.5 text-xs font-medium text-muted-foreground">Mailboxes</div>
+        <NavItem active={selected === 'all'} onClick={() => onSelect('all')}>
+          <Inbox className="size-4" />
+          All inboxes
+          <Count value={unread('all')} />
+        </NavItem>
+      </nav>
+
+      <nav className="grid gap-0.5">
+        <div className="mb-1 px-2.5 text-xs font-medium text-muted-foreground">Accounts</div>
+        {accounts.map((account) => {
+          const status = statuses[account.id]
+          return (
+            <div key={account.id} className="group relative">
+              <NavItem
+                active={selected === account.id}
+                onClick={() => onSelect(account.id)}
+                className="h-auto py-2"
+              >
+                <span
+                  className={cn(
+                    'mx-1 size-2 shrink-0 rounded-full',
+                    accountDot(account.colorIndex)
+                  )}
+                />
+                <span className="grid min-w-0 flex-1 text-left">
+                  <span className="truncate">{account.name}</span>
+                  <span className="truncate text-xs font-normal text-muted-foreground">
+                    {status?.state === 'error' ? (
+                      <span className="text-destructive">{status.message}</span>
+                    ) : (
+                      account.email
+                    )}
+                  </span>
+                </span>
+                <Count value={unread(account.id)} />
+              </NavItem>
+              <button
+                type="button"
+                title={`Remove ${account.name}`}
+                aria-label={`Remove ${account.name}`}
+                onClick={() => onRemoveAccount(account)}
+                className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 rounded p-1.5 text-muted-foreground group-hover:block hover:bg-background hover:text-foreground"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          )
+        })}
+        <NavItem onClick={onAddAccount}>
+          <Plus className="size-4" />
+          Add account
+        </NavItem>
+      </nav>
+
+      <StatusLine accounts={accounts} statuses={statuses} />
+    </aside>
+  )
+}
+
+function NavItem({
+  active,
+  className,
+  children,
+  onClick
+}: {
+  active?: boolean
+  className?: string
+  children: React.ReactNode
+  onClick: () => void
+}): React.JSX.Element {
+  return (
+    <Button
+      variant="ghost"
+      onClick={onClick}
+      className={cn(
+        'h-9 w-full justify-start gap-3 px-2.5 font-normal text-muted-foreground hover:text-foreground',
+        active && 'bg-accent font-medium text-foreground',
+        className
+      )}
+    >
+      {children}
+    </Button>
+  )
+}
+
+function Count({ value }: { value: number }): React.JSX.Element | null {
+  return value > 0 ? <span className="ml-auto text-xs tabular-nums">{value}</span> : null
+}
+
+function StatusLine({
+  accounts,
+  statuses
+}: {
+  accounts: AccountInfo[]
+  statuses: Record<string, AccountStatus>
+}): React.JSX.Element {
+  const live = accounts.filter((a) => statuses[a.id]?.state === 'live').length
+  const failing = accounts.filter((a) => statuses[a.id]?.state === 'error').length
+  const total = accounts.length
+
+  let dot = 'bg-muted-foreground'
+  let text = 'No accounts yet'
+  if (total > 0 && live === total) {
+    dot = 'bg-live shadow-[0_0_0_3px_color-mix(in_oklab,var(--live)_20%,transparent)]'
+    text = `Live · ${total} ${total === 1 ? 'account' : 'accounts'} connected`
+  } else if (failing > 0) {
+    dot = 'bg-destructive'
+    text = `${failing} of ${total} ${total === 1 ? 'account' : 'accounts'} not connected`
+  } else if (total > 0) {
+    dot = 'bg-primary animate-pulse'
+    text = 'Connecting…'
+  }
+
+  return (
+    <div className="mt-auto flex items-center gap-2 border-t px-1 pt-3 text-xs text-muted-foreground">
+      <span className={cn('size-2 shrink-0 rounded-full', dot)} />
+      {text}
+    </div>
+  )
+}
