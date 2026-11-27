@@ -54,3 +54,71 @@ export async function addTodoistTask(
   })
   return String(task.id)
 }
+
+export interface TodoistTask {
+  id: string
+  content: string
+  description: string
+  /** YYYY-MM-DD, or null without a due date. */
+  dueDate: string | null
+}
+
+/** All open tasks with a due date (up to 1000). */
+export async function listDueTasks(token: string): Promise<TodoistTask[]> {
+  type Page = {
+    results: Array<{
+      id: string
+      content: string
+      description?: string
+      due?: { date?: string } | null
+    }>
+    next_cursor: string | null
+  }
+  const tasks: TodoistTask[] = []
+  let cursor: string | null = null
+  for (let page = 0; page < 5; page++) {
+    const query = `/tasks?limit=200${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`
+    const result: Page = await call<Page>(token, query)
+    for (const task of result.results) {
+      const due = task.due?.date?.slice(0, 10) ?? null
+      if (due) {
+        tasks.push({
+          id: String(task.id),
+          content: task.content,
+          description: task.description ?? '',
+          dueDate: due
+        })
+      }
+    }
+    cursor = result.next_cursor
+    if (!cursor) break
+  }
+  return tasks
+}
+
+const words = (text: string): Set<string> =>
+  new Set(
+    text
+      .toLowerCase()
+      .split(/[^\p{L}\p{N}]+/u)
+      .filter((w) => w.length >= 4)
+  )
+
+/**
+ * An open task that already covers this date: due the same day, and either made by
+ * Ember Mail for this mail (its description names the subject) or sharing a real word
+ * with the title ("Dentist appointment" and "Dentist Dr. Meyer").
+ */
+export function findExistingTask(
+  tasks: TodoistTask[],
+  date: MailDate,
+  mail: { subject: string }
+): TodoistTask | undefined {
+  const titleWords = words(date.title)
+  return tasks.find((task) => {
+    if (task.dueDate !== date.date) return false
+    if (mail.subject && task.description.includes(mail.subject)) return true
+    const taskWords = words(`${task.content} ${task.description}`)
+    return [...titleWords].some((w) => taskWords.has(w))
+  })
+}

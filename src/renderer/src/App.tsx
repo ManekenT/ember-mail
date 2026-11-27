@@ -130,6 +130,24 @@ function App(): React.JSX.Element {
     [archive, moveToInbox]
   )
 
+  /** Checks Todoist for dates that are already there first, so they aren't added twice. */
+  const openCleanup = useCallback(async () => {
+    let mails = visible
+    if (mailbox.ai?.hasTodoistToken) {
+      const keys = visible.flatMap((m) => (m.analysis ? [m.analysis.key] : []))
+      try {
+        const updated = await window.api.checkTodoist(keys)
+        mails = visible.map((m) =>
+          m.analysis && updated[m.analysis.key] ? { ...m, analysis: updated[m.analysis.key] } : m
+        )
+      } catch (e) {
+        showToast(cleanError(e as Error))
+        return
+      }
+    }
+    setCleanup(suggestCleanup(mails))
+  }, [visible, mailbox.ai, showToast])
+
   const cleanupDone = useCallback(
     ({ archived, tasks, failed }: CleanupResult) => {
       const parts = [`Archived ${archived.length} ${archived.length === 1 ? 'mail' : 'mails'}`]
@@ -256,9 +274,7 @@ function App(): React.JSX.Element {
             onOpen={open}
             onToggleArchive={toggleArchive}
             onAddAccount={() => setAddOpen(true)}
-            onCleanInbox={
-              mailbox.ai?.hasClaudeKey ? () => setCleanup(suggestCleanup(visible)) : undefined
-            }
+            onCleanInbox={mailbox.ai?.hasClaudeKey ? openCleanup : undefined}
           />
         )}
       </div>

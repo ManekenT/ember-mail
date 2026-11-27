@@ -1,5 +1,5 @@
 import { Archive, CalendarDays, Inbox, LoaderCircle, Search, Sparkles, X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Avatar } from '@renderer/components/Avatar'
 import { EmberLogo } from '@renderer/components/EmberLogo'
@@ -25,7 +25,7 @@ interface InboxScreenProps {
   onToggleArchive: (mail: MailSummary) => void
   onAddAccount: () => void
   /** Shown in the inbox when Claude is set up. */
-  onCleanInbox?: () => void
+  onCleanInbox?: () => Promise<void>
 }
 
 /** The mail list, for the inboxes and for the archive. */
@@ -48,6 +48,7 @@ export function InboxScreen({
   const unread = mails.filter((m) => m.unread).length
   const focusRef = useRef<HTMLDivElement>(null)
   const today = localDay()
+  const [cleaning, setCleaning] = useState(false)
 
   useEffect(() => {
     focusRef.current?.scrollIntoView({ block: 'nearest' })
@@ -102,8 +103,21 @@ export function InboxScreen({
             </div>
           )}
           {!inArchive && onCleanInbox && mails.length > 0 && (
-            <Button variant="outline" size="sm" className="ml-auto" onClick={onCleanInbox}>
-              <Sparkles className="text-primary" />
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              disabled={cleaning}
+              onClick={() => {
+                setCleaning(true)
+                void onCleanInbox().finally(() => setCleaning(false))
+              }}
+            >
+              {cleaning ? (
+                <LoaderCircle className="animate-spin" />
+              ) : (
+                <Sparkles className="text-primary" />
+              )}
               Clean inbox
             </Button>
           )}

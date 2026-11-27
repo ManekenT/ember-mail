@@ -70,6 +70,14 @@ export function suggestCleanup(inbox: MailSummary[], now = new Date()): CleanupS
       continue
     }
 
+    const inTodoist = analysis.dates.some(
+      (date) => date.kind !== 'expiry' && date.date >= today && date.todoistTaskId
+    )
+    if (inTodoist) {
+      suggestions.push({ mail, action: 'archive', reason: 'Already in Todoist', dateIndexes: [] })
+      continue
+    }
+
     const ageDays = (now.getTime() - new Date(mail.date).getTime()) / DAY_MS
     if (analysis.disposable && ageDays >= 1) {
       suggestions.push({

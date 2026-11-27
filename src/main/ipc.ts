@@ -5,10 +5,10 @@ import { testConnection } from './mail/connection'
 import type { MailManager } from './mail/manager'
 import { getSenderLogo } from './logos'
 import { Analyzer } from './ai/analyzer'
-import { addTodoistTask, verifyTodoistToken } from './ai/todoist'
+import { addTodoistTask, findExistingTask, listDueTasks, verifyTodoistToken } from './ai/todoist'
 import { getSecret, setSecret } from './settings'
 import { checkForUpdates, getUpdateState, installUpdate } from './updater'
-import type { AccountInput, AiSettings, MailFolder } from '../shared/types'
+import type { AccountInput, AiSettings, MailAnalysis, MailFolder } from '../shared/types'
 
 export function registerIpc(mail: MailManager): void {
   const aiSettings = (): AiSettings => ({
@@ -80,8 +80,29 @@ export function registerIpc(mail: MailManager): void {
     const date = entry?.dates[dateIndex]
     if (!entry || !date) throw new Error('This date no longer exists.')
     if (date.todoistTaskId) return entry
-    const taskId = await addTodoistTask(token, date, entry)
+    const existing = findExistingTask(await listDueTasks(token), date, entry)
+    const taskId = existing?.id ?? (await addTodoistTask(token, date, entry))
     return mail.analyzer.markAddedToTodoist(analysisKey, dateIndex, taskId)
+  })
+
+  // Marks dates that already have a matching open task in Todoist, so nothing is added twice.
+  ipcMain.handle('todoist:check', async (_event, analysisKeys: string[]) => {
+    const token = getSecret('todoistToken')
+    const updated: Record<string, MailAnalysis> = {}
+    if (!token) return updated
+    const pending = analysisKeys.flatMap((key) => {
+      const entry = mail.analyzer.entry(key)
+      return (entry?.dates ?? [])
+        .map((date, index) => ({ key, entry: entry!, date, index }))
+        .filter(({ date }) => !date.todoistTaskId)
+    })
+    if (pending.length === 0) return updated
+    const tasks = await listDueTasks(token)
+    for (const { key, entry, date, index } of pending) {
+      const task = findExistingTask(tasks, date, entry)
+      if (task) updated[key] = mail.analyzer.markAddedToTodoist(key, index, task.id)
+    }
+    return updated
   })
 
   ipcMain.handle('logos:get', (_event, address: string) => getSenderLogo(address))

@@ -174,6 +174,11 @@ export interface EmberApi {
   setClaudeKey(key: string | null): Promise<AiSettings>
   /** Checks the token with Todoist, then stores it encrypted. Null removes it. */
   setTodoistToken(token: string | null): Promise<AiSettings>
+  /**
+   * Looks in Todoist for open tasks that already cover these analyses' dates and marks
+   * them as added. Returns the analyses that changed, by key.
+   */
+  checkTodoist(analysisKeys: string[]): Promise<Record<string, MailAnalysis>>
   /** Adds one of the mail's dates to Todoist. Returns the updated analysis. */
   addToTodoist(analysisKey: string, dateIndex: number): Promise<MailAnalysis>
   openExternal(url: string): Promise<void>
