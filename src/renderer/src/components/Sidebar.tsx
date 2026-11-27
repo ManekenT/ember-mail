@@ -124,13 +124,8 @@ export function Sidebar({
             {claudeError}
           </button>
         )}
-        {updates && <UpdateButton state={updates} />}
-        <div className="flex items-center gap-2 border-t border-hairline/[.07] pt-3">
-          {updates && (
-            <span className="shrink-0 rounded-full border border-hairline/10 bg-hairline/[.04] px-2 py-px text-[11px] text-muted-foreground tabular-nums">
-              v{updates.currentVersion}
-            </span>
-          )}
+        <div className="flex items-center gap-2 border-t border-hairline/[.07] px-1 pt-3">
+          {updates && <UpdateButton state={updates} />}
           <button
             type="button"
             title="Settings"
