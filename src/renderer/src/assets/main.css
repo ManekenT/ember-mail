@@ -35,10 +35,15 @@
   --sidebar: hsl(240 5% 98%);
   --sidebar-foreground: hsl(240 10% 4%);
   --sidebar-border: hsl(240 6% 90%);
-  /* Account colours sit ~120° apart on the hue wheel so they never look alike. */
+  /* Account colours: the first four are ~90° apart on the hue wheel, the next four fill the gaps. */
   --account-1: hsl(212 90% 48%);
   --account-2: hsl(328 80% 52%);
   --account-3: hsl(44 95% 45%);
+  --account-4: hsl(145 65% 38%);
+  --account-5: hsl(268 75% 58%);
+  --account-6: hsl(186 85% 38%);
+  --account-7: hsl(0 80% 52%);
+  --account-8: hsl(85 70% 40%);
   --live: hsl(142 60% 50%);
   /* Behind sender logos: light, so dark logos with transparency stay visible. */
   --logo-tile: hsl(0 0% 100%);
@@ -72,6 +77,11 @@
   --account-1: hsl(212 95% 62%);
   --account-2: hsl(328 85% 64%);
   --account-3: hsl(46 95% 56%);
+  --account-4: hsl(145 65% 50%);
+  --account-5: hsl(268 85% 72%);
+  --account-6: hsl(186 85% 52%);
+  --account-7: hsl(0 85% 64%);
+  --account-8: hsl(85 70% 55%);
   --live: hsl(142 60% 52%);
   --glass: hsl(240 8% 12%);
   --hairline: hsl(0 0% 100%);
@@ -90,6 +100,11 @@
   --color-account-1: var(--account-1);
   --color-account-2: var(--account-2);
   --color-account-3: var(--account-3);
+  --color-account-4: var(--account-4);
+  --color-account-5: var(--account-5);
+  --color-account-6: var(--account-6);
+  --color-account-7: var(--account-7);
+  --color-account-8: var(--account-8);
   --color-live: var(--live);
   --color-logo-tile: var(--logo-tile);
   --color-logo-ring: var(--logo-ring);

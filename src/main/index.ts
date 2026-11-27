@@ -6,6 +6,9 @@ import { setupAutoUpdates } from './updater'
 import { registerIpc } from './ipc'
 import { MailManager } from './mail/manager'
 
+/** Must match the title bar height in the renderer (TitleBar.tsx). */
+const TITLE_BAR_HEIGHT = 40
+
 let mainWindow: BrowserWindow | null = null
 const mail = new MailManager(() => mainWindow)
 
@@ -20,6 +23,18 @@ function createWindow(): void {
     show: false,
     backgroundColor: '#0c0c0e',
     autoHideMenuBar: true,
+    // The app draws its own title bar. Windows and Linux keep native minimize/maximize/close
+    // buttons as an overlay in the top right; macOS keeps its traffic lights.
+    titleBarStyle: 'hidden',
+    ...(process.platform === 'darwin'
+      ? { trafficLightPosition: { x: 14, y: 13 } }
+      : {
+          titleBarOverlay: {
+            color: '#0c0c0e', // --background, so the buttons sit on the window's own surface
+            symbolColor: '#a1a1aa',
+            height: TITLE_BAR_HEIGHT
+          }
+        }),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

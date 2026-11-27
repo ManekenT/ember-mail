@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { EmberApi, UpdateState } from '../shared/types'
 
 const api: EmberApi = {
+  platform: process.platform,
   listAccounts: () => ipcRenderer.invoke('accounts:list'),
   addAccount: (input) => ipcRenderer.invoke('accounts:add', input),
   removeAccount: (id) => ipcRenderer.invoke('accounts:remove', id),

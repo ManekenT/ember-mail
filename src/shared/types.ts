@@ -89,6 +89,8 @@ export interface UpdateState {
 }
 
 export interface EmberApi {
+  /** process.platform: the title bar leaves room for the native window buttons. */
+  platform: string
   listAccounts(): Promise<AccountInfo[]>
   addAccount(input: AccountInput): Promise<AccountInfo>
   removeAccount(id: string): Promise<void>
