@@ -1,4 +1,14 @@
-import { Archive, Inbox, PenLine, Pencil, Plus, Settings, Sparkles, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  Inbox,
+  Package,
+  PenLine,
+  Pencil,
+  Plus,
+  Settings,
+  Sparkles,
+  Trash2
+} from 'lucide-react'
 
 import { UpdateButton } from '@renderer/components/UpdateButton'
 import { useUpdates } from '@renderer/hooks/useUpdates'
@@ -23,6 +33,10 @@ interface SidebarProps {
   /** Why Claude's analysis is paused, if it is. */
   claudeError: string | null
   onOpenSettings: () => void
+  /** Parcels on their way; the Deliveries item shows when there is a count (or Claude is on). */
+  deliveryCount: number | null
+  deliveriesActive: boolean
+  onOpenDeliveries: () => void
 }
 
 export function Sidebar({
@@ -38,7 +52,10 @@ export function Sidebar({
   onEditAccount,
   onCompose,
   claudeError,
-  onOpenSettings
+  onOpenSettings,
+  deliveryCount,
+  deliveriesActive,
+  onOpenDeliveries
 }: SidebarProps): React.JSX.Element {
   const updates = useUpdates()
   const unread = (accountId: string): number =>
@@ -61,7 +78,7 @@ export function Sidebar({
           Mailboxes
         </div>
         <NavItem
-          active={folder === 'inbox' && selected === 'all'}
+          active={!deliveriesActive && folder === 'inbox' && selected === 'all'}
           onClick={() => onSelectFolder('inbox')}
         >
           <Inbox className="size-4" />
@@ -69,12 +86,19 @@ export function Sidebar({
           <Count value={unread('all')} />
         </NavItem>
         <NavItem
-          active={folder === 'archive' && selected === 'all'}
+          active={!deliveriesActive && folder === 'archive' && selected === 'all'}
           onClick={() => onSelectFolder('archive')}
         >
           <Archive className="size-4" />
           Archive
         </NavItem>
+        {deliveryCount !== null && (
+          <NavItem active={deliveriesActive} onClick={onOpenDeliveries}>
+            <Package className="size-4" />
+            Deliveries
+            <Count value={deliveryCount} />
+          </NavItem>
+        )}
       </nav>
 
       <nav className="grid gap-0.5">
@@ -86,7 +110,7 @@ export function Sidebar({
           return (
             <div key={account.id} className="group relative">
               <NavItem
-                active={selected === account.id}
+                active={!deliveriesActive && selected === account.id}
                 onClick={() => onSelect(account.id)}
                 className="h-auto py-2"
               >

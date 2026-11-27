@@ -121,6 +121,12 @@ export class MailManager {
     return mails
   }
 
+  /** A mail by Message-ID in one account, wherever it is now. Null when it's gone. */
+  async findMail(accountId: string, messageId: string): Promise<MailSummary | null> {
+    const found = await this.connection(accountId).findByMessageId(messageId)
+    return found && this.withAnalysis(found)
+  }
+
   connection(accountId: string): AccountConnection {
     const connection = this.connections.get(accountId)
     if (!connection) throw new Error(`Unknown account ${accountId}`)

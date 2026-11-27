@@ -63,6 +63,12 @@ npm run build:win  # build the Windows installer into dist/
   spam, promotions, newsletters and expired mail (even unread), and read notifications
   and other mail with no lasting value. Urgent and important mail is never suggested.
   Undo moves everything back.
+- **Deliveries** (sidebar): the analysis also spots orders and parcels (status, carrier,
+  tracking number, expected day). Mails about the same parcel are merged into one card with
+  its progress, a **Track** button (the carrier's own page for DHL, DPD, Hermes, GLS, UPS and
+  FedEx, else the link from the mail) and the newest mail. Delivered parcels stay for 3 days.
+- **Inbox weather**: the flame in the title bar glows warm when important mail waits and
+  red-hot when something is urgent.
 - **Draft reply**: the reply screen offers a few one-tap ideas (Haiku 5.5), or type what
   the reply should say. Claude Opus 5.5 writes it into the body in the mail's language,
   with placeholders for facts it doesn't know. Nothing is sent without you.

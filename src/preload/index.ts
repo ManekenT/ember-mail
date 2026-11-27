@@ -46,6 +46,8 @@ const api: EmberApi = {
   addToTodoist: (analysisKey, dateIndex) =>
     ipcRenderer.invoke('todoist:add', analysisKey, dateIndex),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
+  listDeliveries: () => ipcRenderer.invoke('deliveries:list'),
+  findMail: (accountId, messageId) => ipcRenderer.invoke('mail:find', accountId, messageId),
   onInboxChanged: (callback) => {
     const listener = (): void => callback()
     ipcRenderer.on('inbox:changed', listener)

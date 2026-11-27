@@ -3,7 +3,16 @@ import { app } from 'electron'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import type { MailAnalysis, MailCategory, MailDate, MailSummary, Urgency } from '../../shared/types'
+import type {
+  MailAnalysis,
+  MailCategory,
+  MailDate,
+  MailSummary,
+  Parcel,
+  ParcelStatus,
+  Urgency
+} from '../../shared/types'
+import { trackingLink } from './carriers'
 
 /** Small, fast and cheap: every incoming mail goes through it once. */
 const MODEL = 'claude-haiku-5-5'
@@ -13,7 +22,7 @@ const RETRY_AFTER_MS = 10 * 60_000
 /** Analyses are kept for mails that were archived too; the oldest go beyond this many. */
 const MAX_STORED = 5_000
 /** Raise when the prompt or output changes, so stored analyses are redone. */
-const ANALYSIS_VERSION = 3
+const ANALYSIS_VERSION = 4
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
 const CATEGORIES: MailCategory[] = [
@@ -30,13 +39,28 @@ const CATEGORIES: MailCategory[] = [
 ]
 const URGENCIES: Urgency[] = ['none', 'important', 'urgent']
 const DATE_KINDS: MailDate['kind'][] = ['event', 'deadline', 'expiry']
+const PARCEL_STATUSES: ParcelStatus[] = [
+  'ordered',
+  'shipped',
+  'out_for_delivery',
+  'pickup',
+  'delivered',
+  'problem'
+]
 
-interface StoredAnalysis extends Omit<MailAnalysis, 'key'> {
+export interface StoredAnalysis extends Omit<MailAnalysis, 'key' | 'parcel'> {
   /** Missing on analyses from before versioning (version 1). */
   version?: number
   analyzedAt: string
   fromName: string
   subject: string
+  /** Missing before version 4. */
+  parcel?: Parcel | null
+  fromAddress?: string
+  accountId?: string
+  messageId?: string | null
+  /** The mail's own date (ISO). */
+  mailDate?: string
 }
 
 export interface AnalysisJob {
@@ -60,6 +84,7 @@ Fields:
 - urgency_reason: a few words on why, when urgency is not "none"; otherwise null.
 - dates: concrete dates in the mail that Tom might want in his task list: events and appointments (kind "event"), deadlines to act by (kind "deadline"), and when an offer, voucher, code or the mail's whole point runs out (kind "expiry"). Give each a short title that works as a task name ("Dentist appointment", "Pay invoice 2026-114", "Voucher expires"). Use YYYY-MM-DD and, if a time is given, HH:MM in 24-hour form, else null. Take the year from the mail whenever it states one, and never assume the current year: a date can be a year or more away. When no year is given, use the next occurrence after the mail's date. Set weekday to the weekday the mail itself names for that date (lowercase English, e.g. "saturday"), or "none" if it names none. Resolve relative dates ("tomorrow", "next Friday") against the mail's date. Leave out dates in the past, the mail's own send date, and vague ones without a day. Most mails have none.
 - expires_on: the day after which the whole mail is no longer useful (an event that has passed, an offer that ran out, a delivery that arrived, a one-time code), as YYYY-MM-DD; null when it stays relevant or you can't tell.
+- parcel: when the mail is about a physical order or shipment (order confirmation, shipping notice, delivery update, delivered notice, pickup notice, delivery problem), what it says about it; otherwise status "none" and empty strings. status: "ordered" (order confirmed, not shipped yet), "shipped" (on its way), "out_for_delivery" (arrives today), "pickup" (waiting at a parcel shop, locker or post office), "delivered", "problem" (failed attempt, delay, damage, returned to sender). carrier: the delivery company as named (DHL, Deutsche Post, DPD, Hermes, GLS, UPS, FedEx, Amazon, ...), else "". tracking_number: exactly as written in the mail, else "". tracking_url: the tracking link exactly as it appears in the mail, else "". item: what was ordered, at most 6 words, else "". shop: the shop or company it was ordered from, else "". expected: the expected delivery day as YYYY-MM-DD (the first day of a range), else "". Digital orders, subscriptions and invoices without a shipment are status "none".
 - disposable: true only when the mail has no lasting value once read: promotions and ads, newsletters, automated notifications and status updates (shipping, sign-ins, social media), one-time codes. Mail from a real person, invoices, contracts, receipts, tickets, bookings, account or legal information, and anything Tom may need to look up later are false. When unsure, false.`
 
 const SCHEMA = {
@@ -72,7 +97,8 @@ const SCHEMA = {
     'urgency_reason',
     'dates',
     'expires_on',
-    'disposable'
+    'disposable',
+    'parcel'
   ],
   properties: {
     summary: { type: 'string' },
@@ -96,7 +122,29 @@ const SCHEMA = {
       }
     },
     expires_on: { type: ['string', 'null'] },
-    disposable: { type: 'boolean' }
+    disposable: { type: 'boolean' },
+    parcel: {
+      type: 'object',
+      additionalProperties: false,
+      required: [
+        'status',
+        'carrier',
+        'tracking_number',
+        'tracking_url',
+        'item',
+        'shop',
+        'expected'
+      ],
+      properties: {
+        status: { type: 'string', enum: [...PARCEL_STATUSES, 'none'] },
+        carrier: { type: 'string' },
+        tracking_number: { type: 'string' },
+        tracking_url: { type: 'string' },
+        item: { type: 'string' },
+        shop: { type: 'string' },
+        expected: { type: 'string' }
+      }
+    }
   }
 }
 
@@ -129,6 +177,11 @@ export class Analyzer {
 
   get enabled(): boolean {
     return this.client !== null
+  }
+
+  /** Every stored analysis, for views across all mail (deliveries). */
+  all(): Array<[string, StoredAnalysis]> {
+    return Object.entries(this.store)
   }
 
   get(mail: MailSummary): MailAnalysis | undefined {
@@ -212,7 +265,11 @@ export class Analyzer {
         version: ANALYSIS_VERSION,
         analyzedAt: new Date().toISOString(),
         fromName: job.mail.fromName,
-        subject: job.mail.subject
+        fromAddress: job.mail.fromAddress,
+        subject: job.mail.subject,
+        accountId: job.mail.accountId,
+        messageId: job.mail.messageId ?? null,
+        mailDate: job.mail.date
       }
       this.scheduleSave()
       this.onChange()
@@ -265,7 +322,7 @@ async function analyze(client: Anthropic, { mail, text }: AnalysisJob): Promise<
   if (response.stop_reason === 'max_tokens') throw new Error('The analysis was cut off.')
   const block = response.content.find((b) => b.type === 'text')
   if (!block || block.type !== 'text') throw new Error('The analysis came back empty.')
-  return validate(JSON.parse(block.text))
+  return validate(JSON.parse(block.text), text)
 }
 
 type StoredFields = Omit<MailAnalysis, 'key'>
@@ -274,21 +331,33 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/
 const TIME = /^\d{2}:\d{2}$/
 
 /** Structured outputs guarantee the shape; this keeps the values sensible. */
-function validate(raw: {
-  summary: string
-  category: MailCategory
-  urgency: Urgency
-  urgency_reason: string | null
-  dates: Array<{
-    title: string
-    date: string
-    time: string | null
-    weekday: string
-    kind: MailDate['kind']
-  }>
-  expires_on: string | null
-  disposable: boolean
-}): StoredFields {
+function validate(
+  raw: {
+    summary: string
+    category: MailCategory
+    urgency: Urgency
+    urgency_reason: string | null
+    dates: Array<{
+      title: string
+      date: string
+      time: string | null
+      weekday: string
+      kind: MailDate['kind']
+    }>
+    expires_on: string | null
+    disposable: boolean
+    parcel: {
+      status: string
+      carrier: string
+      tracking_number: string
+      tracking_url: string
+      item: string
+      shop: string
+      expected: string
+    }
+  },
+  text: string
+): StoredFields {
   const today = localDay(new Date())
   return {
     summary: raw.summary.trim().replace(/\s+/g, ' ').slice(0, 140),
@@ -307,7 +376,38 @@ function validate(raw: {
       }))
       .slice(0, 5),
     expiresOn: raw.expires_on && DAY.test(raw.expires_on) ? raw.expires_on : null,
-    disposable: raw.disposable === true
+    disposable: raw.disposable === true,
+    parcel: validParcel(raw.parcel, text)
+  }
+}
+
+function validParcel(
+  raw: {
+    status: string
+    carrier: string
+    tracking_number: string
+    tracking_url: string
+    item: string
+    shop: string
+    expected: string
+  },
+  text: string
+): Parcel | null {
+  const status = PARCEL_STATUSES.find((s) => s === raw.status)
+  if (!status) return null
+  const carrier = raw.carrier.trim().slice(0, 40)
+  const trackingNumber = raw.tracking_number.replace(/\s+/g, '').slice(0, 60)
+  // Only a link that is really in the mail; a carrier's own page is preferred.
+  const url = raw.tracking_url.trim()
+  const mailUrl = /^https:\/\/\S+$/.test(url) && text.includes(url) ? url : null
+  return {
+    status,
+    carrier,
+    trackingNumber,
+    trackingUrl: trackingLink(carrier, trackingNumber) ?? mailUrl,
+    item: raw.item.trim().slice(0, 80),
+    shop: raw.shop.trim().slice(0, 60),
+    expected: DAY.test(raw.expected) ? raw.expected : null
   }
 }
 
@@ -335,7 +435,8 @@ export function matchWeekday(day: string, weekday: string | null): string {
 function toAnalysis(key: string, stored: StoredAnalysis): MailAnalysis {
   const { summary, category, urgency, urgencyReason, dates, expiresOn } = stored
   const disposable = stored.disposable ?? false
-  return { key, summary, category, urgency, urgencyReason, dates, expiresOn, disposable }
+  const parcel = stored.parcel ?? null
+  return { key, summary, category, urgency, urgencyReason, dates, expiresOn, disposable, parcel }
 }
 
 /** YYYY-MM-DD in local time. */

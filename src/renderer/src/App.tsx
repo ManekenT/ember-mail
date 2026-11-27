@@ -9,13 +9,15 @@ import { TitleBar } from '@renderer/components/TitleBar'
 import { Toast, type ToastMessage } from '@renderer/components/Toast'
 import { useArchive } from '@renderer/hooks/useArchive'
 import { useMailbox } from '@renderer/hooks/useMailbox'
+import { useDeliveries } from '@renderer/hooks/useDeliveries'
 import { useSearch } from '@renderer/hooks/useSearch'
 import { InboxScreen } from '@renderer/screens/InboxScreen'
 import { cleanError } from '@renderer/lib/errors'
 import { ComposeScreen } from '@renderer/screens/ComposeScreen'
 import { MailScreen } from '@renderer/screens/MailScreen'
+import { DeliveriesScreen } from '@renderer/screens/DeliveriesScreen'
 import { SearchScreen } from '@renderer/screens/SearchScreen'
-import type { AccountInfo, MailFolder, MailSummary } from '../../shared/types'
+import type { AccountInfo, Delivery, MailFolder, MailSummary } from '../../shared/types'
 
 function App(): React.JSX.Element {
   const mailbox = useMailbox()
@@ -38,6 +40,10 @@ function App(): React.JSX.Element {
   const [searchOpen, setSearchOpen] = useState(false)
   /** A mail opened from the search results. */
   const [searchMail, setSearchMail] = useState<MailSummary | null>(null)
+  const deliveries = useDeliveries()
+  const [deliveriesOpen, setDeliveriesOpen] = useState(false)
+  /** A mail opened from Deliveries. */
+  const [deliveryMail, setDeliveryMail] = useState<MailSummary | null>(null)
 
   const archived = useArchive(folder === 'archive')
   const { remove: removeArchived, reload: reloadArchived } = archived
@@ -190,7 +196,31 @@ function App(): React.JSX.Element {
     [selected, refresh]
   )
 
+  const openDeliveryMail = useCallback(
+    async (delivery: Delivery) => {
+      const { accountId, messageId, analysisKey } = delivery.mail
+      const inInbox = inbox.find((m) => m.analysis?.key === analysisKey)
+      if (inInbox) return setDeliveryMail(inInbox)
+      if (!accountId || !messageId) return showToast('That mail is no longer in the inbox.')
+      try {
+        const found = await window.api.findMail(accountId, messageId)
+        if (found) setDeliveryMail(found)
+        else showToast('That mail is no longer there.')
+      } catch (e) {
+        showToast(cleanError(e as Error))
+      }
+    },
+    [inbox, showToast]
+  )
+
+  const closeDeliveries = useCallback(() => {
+    setDeliveriesOpen(false)
+    setDeliveryMail(null)
+  }, [])
+
   const openSearch = useCallback(() => {
+    setDeliveriesOpen(false)
+    setDeliveryMail(null)
     setSearchOpen(true)
     setSearchMail(null)
     setCompose(null)
@@ -234,6 +264,8 @@ function App(): React.JSX.Element {
         setSelected('all')
         setSearchOpen(false)
         setSearchMail(null)
+        setDeliveriesOpen(false)
+        setDeliveryMail(null)
         const key = `${accountId}:inbox:${uid}`
         setOpenKey(key)
         setFocusKey(key)
@@ -254,6 +286,19 @@ function App(): React.JSX.Element {
       )
         return
       if (event.ctrlKey || event.metaKey || event.altKey) return
+
+      if (deliveriesOpen) {
+        const key = event.key.toLowerCase()
+        if (!deliveryMail) {
+          if (key !== 'escape') return
+          closeDeliveries()
+        } else if (key === 'escape') setDeliveryMail(null)
+        else if (key === 'r' && deliveryMail.folder !== 'sent')
+          setCompose({ replyTo: deliveryMail })
+        else return
+        event.preventDefault()
+        return
+      }
 
       if (searchOpen) {
         // The search field handles its own Esc; here: a mail opened from the results.
@@ -301,12 +346,15 @@ function App(): React.JSX.Element {
     toggleArchive,
     searchOpen,
     searchMail,
-    toggleArchiveFromSearch
+    toggleArchiveFromSearch,
+    deliveriesOpen,
+    deliveryMail,
+    closeDeliveries
   ])
 
   return (
     <div className="ambient flex h-full flex-col">
-      <TitleBar onSearch={accounts.length > 0 ? openSearch : undefined} />
+      <TitleBar onSearch={accounts.length > 0 ? openSearch : undefined} inbox={inbox} />
       <div className="flex min-h-0 flex-1 gap-2 px-2 pb-2">
         <Sidebar
           accounts={accounts}
@@ -316,6 +364,7 @@ function App(): React.JSX.Element {
           selected={selected}
           onSelectFolder={(next) => {
             closeSearch()
+            closeDeliveries()
             setFolder(next)
             setSelected('all')
             setOpenKey(null)
@@ -323,6 +372,7 @@ function App(): React.JSX.Element {
           }}
           onSelect={(id) => {
             closeSearch()
+            closeDeliveries()
             setSelected(id)
             setOpenKey(null)
           }}
@@ -335,6 +385,17 @@ function App(): React.JSX.Element {
           onCompose={() => setCompose({ replyTo: null })}
           claudeError={mailbox.ai?.claudeError ?? null}
           onOpenSettings={() => setSettingsOpen(true)}
+          deliveryCount={
+            deliveries.length > 0 || mailbox.ai?.hasClaudeKey
+              ? deliveries.filter((d) => d.status !== 'delivered').length
+              : null
+          }
+          deliveriesActive={deliveriesOpen}
+          onOpenDeliveries={() => {
+            closeSearch()
+            setDeliveriesOpen(true)
+            setDeliveryMail(null)
+          }}
         />
 
         {compose ? (
@@ -353,6 +414,26 @@ function App(): React.JSX.Element {
               setEditAccount(account)
               setAddOpen(true)
             }}
+          />
+        ) : deliveriesOpen && deliveryMail ? (
+          <MailScreen
+            mail={deliveryMail}
+            account={accountById.get(deliveryMail.accountId)}
+            backLabel="Deliveries"
+            onBack={() => setDeliveryMail(null)}
+            onToggleArchive={(mail) => {
+              toggleArchive(mail)
+              setDeliveryMail(null)
+            }}
+            hasTodoist={mailbox.ai?.hasTodoistToken ?? false}
+            onReply={(mail) => setCompose({ replyTo: mail })}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+        ) : deliveriesOpen ? (
+          <DeliveriesScreen
+            deliveries={deliveries}
+            onOpenMail={(delivery) => void openDeliveryMail(delivery)}
+            onCopied={(text) => showToast(text)}
           />
         ) : searchOpen && searchMail ? (
           <MailScreen
