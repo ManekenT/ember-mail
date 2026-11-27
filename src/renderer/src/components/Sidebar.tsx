@@ -2,6 +2,8 @@ import {
   Archive,
   Inbox,
   Package,
+  PanelLeftClose,
+  PanelLeftOpen,
   PenLine,
   Pencil,
   Plus,
@@ -37,6 +39,9 @@ interface SidebarProps {
   deliveryCount: number | null
   deliveriesActive: boolean
   onOpenDeliveries: () => void
+  /** Collapsed to a slim icon rail. */
+  collapsed: boolean
+  onToggleCollapsed: () => void
 }
 
 export function Sidebar({
@@ -55,83 +60,121 @@ export function Sidebar({
   onOpenSettings,
   deliveryCount,
   deliveriesActive,
-  onOpenDeliveries
+  onOpenDeliveries,
+  collapsed,
+  onToggleCollapsed
 }: SidebarProps): React.JSX.Element {
   const updates = useUpdates()
   const unread = (accountId: string): number =>
     inbox.filter((m) => m.unread && (accountId === 'all' || m.accountId === accountId)).length
 
   return (
-    <aside className="sheen flex min-h-0 w-[244px] shrink-0 flex-col gap-5 overflow-auto rounded-2xl border border-hairline/[.07] bg-glass/45 px-3 py-3 backdrop-blur-2xl backdrop-saturate-150">
+    <aside
+      className={cn(
+        'sheen flex min-h-0 shrink-0 flex-col gap-5 overflow-x-hidden overflow-y-auto rounded-2xl border border-hairline/[.07] bg-glass/45 py-3 backdrop-blur-2xl backdrop-saturate-150 transition-[width] duration-200 ease-out',
+        collapsed ? 'w-[60px] items-center px-2' : 'w-[244px] px-3'
+      )}
+    >
       <Button
         onClick={onCompose}
-        className="w-full justify-start gap-3 px-3.5"
+        title={collapsed ? 'New mail (C)' : undefined}
+        aria-label="New mail"
+        size={collapsed ? 'icon' : 'default'}
+        className={cn(!collapsed && 'w-full justify-start gap-3 px-3.5')}
         disabled={accounts.length === 0}
       >
         <PenLine />
-        New mail
-        <span className="ml-auto font-mono text-[10.5px] text-primary-foreground/70">C</span>
+        {!collapsed && (
+          <>
+            New mail
+            <span className="ml-auto font-mono text-[10.5px] text-primary-foreground/70">C</span>
+          </>
+        )}
       </Button>
 
       <nav className="grid gap-0.5">
-        <div className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[.08em] text-muted-foreground/80 uppercase">
-          Mailboxes
-        </div>
+        {!collapsed && <SectionLabel>Mailboxes</SectionLabel>}
         <NavItem
+          collapsed={collapsed}
+          label="All inboxes"
+          icon={<Inbox className="size-4" />}
+          count={unread('all')}
           active={!deliveriesActive && folder === 'inbox' && selected === 'all'}
           onClick={() => onSelectFolder('inbox')}
-        >
-          <Inbox className="size-4" />
-          All inboxes
-          <Count value={unread('all')} />
-        </NavItem>
+        />
         <NavItem
+          collapsed={collapsed}
+          label="Archive"
+          icon={<Archive className="size-4" />}
           active={!deliveriesActive && folder === 'archive' && selected === 'all'}
           onClick={() => onSelectFolder('archive')}
-        >
-          <Archive className="size-4" />
-          Archive
-        </NavItem>
+        />
         {deliveryCount !== null && (
-          <NavItem active={deliveriesActive} onClick={onOpenDeliveries}>
-            <Package className="size-4" />
-            Deliveries
-            <Count value={deliveryCount} />
-          </NavItem>
+          <NavItem
+            collapsed={collapsed}
+            label="Deliveries"
+            icon={<Package className="size-4" />}
+            count={deliveryCount}
+            active={deliveriesActive}
+            onClick={onOpenDeliveries}
+          />
         )}
       </nav>
 
       <nav className="grid gap-0.5">
-        <div className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[.08em] text-muted-foreground/80 uppercase">
-          Accounts
-        </div>
+        {!collapsed && <SectionLabel>Accounts</SectionLabel>}
         {accounts.map((account) => {
           const status = statuses[account.id]
+          const failed = status?.state === 'error'
+          const dot = (
+            <span
+              className={cn(
+                'size-2 shrink-0 rounded-full',
+                !collapsed && 'mx-1',
+                accountDot(account.colorIndex)
+              )}
+              style={{ boxShadow: `0 0 8px ${accountColor(account.colorIndex)}` }}
+            />
+          )
+          if (collapsed)
+            return (
+              <NavItem
+                key={account.id}
+                collapsed
+                label={failed ? `${account.name}: ${status.message}` : account.name}
+                icon={
+                  <span className="relative grid size-4 place-items-center">
+                    {dot}
+                    {failed && (
+                      <span className="absolute -right-1 -bottom-1 size-1.5 rounded-full bg-destructive" />
+                    )}
+                  </span>
+                }
+                count={unread(account.id)}
+                active={!deliveriesActive && selected === account.id}
+                onClick={() => onSelect(account.id)}
+              />
+            )
           return (
             <div key={account.id} className="group relative">
               <NavItem
+                label={account.name}
+                icon={dot}
+                count={unread(account.id)}
                 active={!deliveriesActive && selected === account.id}
                 onClick={() => onSelect(account.id)}
                 className="h-auto py-2"
               >
-                <span
-                  className={cn(
-                    'mx-1 size-2 shrink-0 rounded-full',
-                    accountDot(account.colorIndex)
-                  )}
-                  style={{ boxShadow: `0 0 8px ${accountColor(account.colorIndex)}` }}
-                />
                 <span className="grid min-w-0 flex-1 text-left">
                   <span className="truncate">{account.name}</span>
                   <span className="truncate text-xs font-normal text-muted-foreground">
-                    {status?.state === 'error' ? (
+                    {failed ? (
                       <span className="text-destructive">{status.message}</span>
                     ) : (
                       account.email
                     )}
                   </span>
                 </span>
-                <Count value={unread(account.id)} />
               </NavItem>
               <div className="absolute top-1/2 right-1.5 hidden -translate-y-1/2 gap-0.5 rounded-full bg-glass/90 group-hover:flex">
                 <button
@@ -156,33 +199,72 @@ export function Sidebar({
             </div>
           )
         })}
-        <NavItem onClick={onAddAccount}>
-          <Plus className="size-4" />
-          Add account
-        </NavItem>
+        <NavItem
+          collapsed={collapsed}
+          label="Add account"
+          icon={<Plus className="size-4" />}
+          onClick={onAddAccount}
+        />
       </nav>
 
-      <div className="mt-auto grid grid-cols-[minmax(0,1fr)] gap-3">
-        {claudeError && (
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-left text-xs text-destructive"
-          >
-            <Sparkles className="mt-px size-3.5 shrink-0" />
-            {claudeError}
-          </button>
+      <div
+        className={cn(
+          'mt-auto grid gap-3',
+          collapsed ? 'justify-items-center' : 'grid-cols-[minmax(0,1fr)]'
         )}
-        <div className="flex items-center gap-2 border-t border-hairline/[.07] px-1 pt-3">
-          {updates && <UpdateButton state={updates} />}
+      >
+        {claudeError &&
+          (collapsed ? (
+            <button
+              type="button"
+              title={claudeError}
+              aria-label={claudeError}
+              onClick={onOpenSettings}
+              className="grid size-8 place-items-center rounded-full border border-destructive/30 bg-destructive/10 text-destructive"
+            >
+              <Sparkles className="size-3.5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-left text-xs text-destructive"
+            >
+              <Sparkles className="mt-px size-3.5 shrink-0" />
+              {claudeError}
+            </button>
+          ))}
+        <div
+          className={cn(
+            'flex items-center gap-2 border-t border-hairline/[.07] pt-3',
+            collapsed ? 'flex-col px-0' : 'px-1'
+          )}
+        >
+          {updates && <UpdateButton state={updates} compact={collapsed} />}
           <button
             type="button"
             title="Settings"
             aria-label="Settings"
             onClick={onOpenSettings}
-            className="ml-auto shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-hairline/[.08] hover:text-foreground"
+            className={cn(
+              'shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-hairline/[.08] hover:text-foreground',
+              !collapsed && 'ml-auto'
+            )}
           >
             <Settings className="size-4" />
+          </button>
+          <button
+            type="button"
+            title={collapsed ? 'Expand sidebar (Ctrl B)' : 'Collapse sidebar (Ctrl B)'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={onToggleCollapsed}
+            className="shrink-0 rounded-full p-1.5 text-muted-foreground transition-colors hover:bg-hairline/[.08] hover:text-foreground"
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="size-4" />
+            ) : (
+              <PanelLeftClose className="size-4" />
+            )}
           </button>
         </div>
       </div>
@@ -190,29 +272,61 @@ export function Sidebar({
   )
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }): React.JSX.Element {
+  return (
+    <div className="mb-1.5 px-2.5 text-[11px] font-medium tracking-[.08em] whitespace-nowrap text-muted-foreground/80 uppercase">
+      {children}
+    </div>
+  )
+}
+
 function NavItem({
   active,
+  collapsed,
+  label,
+  icon,
+  count = 0,
   className,
   children,
   onClick
 }: {
   active?: boolean
+  collapsed?: boolean
+  label: string
+  icon: React.ReactNode
+  count?: number
   className?: string
-  children: React.ReactNode
+  /** Replaces the label in the expanded sidebar. */
+  children?: React.ReactNode
   onClick: () => void
 }): React.JSX.Element {
   return (
     <Button
       variant="ghost"
       onClick={onClick}
+      title={collapsed ? label : undefined}
+      aria-label={collapsed ? label : undefined}
       className={cn(
-        'h-9 w-full justify-start gap-3 rounded-xl px-2.5 font-normal text-muted-foreground hover:bg-hairline/[.06] hover:text-foreground active:scale-100',
+        'h-9 rounded-xl font-normal text-muted-foreground hover:bg-hairline/[.06] hover:text-foreground active:scale-100',
+        collapsed ? 'relative w-10 px-0' : 'w-full justify-start gap-3 px-2.5',
         active &&
           'bg-hairline/[.09] font-medium text-foreground shadow-[inset_0_1px_0_color-mix(in_oklab,var(--hairline)_6%,transparent)]',
         className
       )}
     >
-      {children}
+      {icon}
+      {collapsed ? (
+        count > 0 && (
+          <span className="absolute top-0.5 right-0.5 min-w-4 rounded-full bg-primary px-1 text-center text-[9.5px] leading-4 font-semibold text-primary-foreground tabular-nums">
+            {count > 99 ? '99+' : count}
+          </span>
+        )
+      ) : (
+        <>
+          {children ?? label}
+          <Count value={count} />
+        </>
+      )}
     </Button>
   )
 }
