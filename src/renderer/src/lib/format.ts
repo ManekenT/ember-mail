@@ -7,10 +7,25 @@ const AVATAR_COLORS = [
   'bg-gradient-to-br from-amber-200 to-orange-600'
 ]
 
-const ACCOUNT_DOTS = ['bg-account-1', 'bg-account-2', 'bg-account-3']
+/** One per --account-N colour in main.css (8, matching ACCOUNT_COLORS in the main process). */
+const ACCOUNT_DOTS = [
+  'bg-account-1',
+  'bg-account-2',
+  'bg-account-3',
+  'bg-account-4',
+  'bg-account-5',
+  'bg-account-6',
+  'bg-account-7',
+  'bg-account-8'
+]
 
 export function accountDot(colorIndex: number): string {
   return ACCOUNT_DOTS[colorIndex % ACCOUNT_DOTS.length]
+}
+
+/** The account colour as a CSS value, for glows and other inline styles. */
+export function accountColor(colorIndex: number): string {
+  return `var(--account-${(colorIndex % ACCOUNT_DOTS.length) + 1})`
 }
 
 export function initials(name: string): string {

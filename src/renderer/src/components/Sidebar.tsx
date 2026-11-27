@@ -4,7 +4,7 @@ import { UpdateButton } from '@renderer/components/UpdateButton'
 import { useUpdates } from '@renderer/hooks/useUpdates'
 
 import { Button } from '@renderer/components/ui/button'
-import { accountDot } from '@renderer/lib/format'
+import { accountColor, accountDot } from '@renderer/lib/format'
 import { cn } from '@renderer/lib/utils'
 import type { AccountInfo, AccountStatus, MailFolder, MailSummary } from '../../../shared/types'
 
@@ -76,7 +76,7 @@ export function Sidebar({
                     'mx-1 size-2 shrink-0 rounded-full',
                     accountDot(account.colorIndex)
                   )}
-                  style={{ boxShadow: `0 0 8px var(--account-${(account.colorIndex % 3) + 1})` }}
+                  style={{ boxShadow: `0 0 8px ${accountColor(account.colorIndex)}` }}
                 />
                 <span className="grid min-w-0 flex-1 text-left">
                   <span className="truncate">{account.name}</span>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AddAccountDialog } from '@renderer/components/AddAccountDialog'
 import { Sidebar } from '@renderer/components/Sidebar'
+import { TitleBar } from '@renderer/components/TitleBar'
 import { Toast, type ToastMessage } from '@renderer/components/Toast'
 import { useArchive } from '@renderer/hooks/useArchive'
 import { useMailbox } from '@renderer/hooks/useMailbox'
@@ -175,50 +176,53 @@ function App(): React.JSX.Element {
   }, [addOpen, openKey, focusKey, visible, open, back, toggleArchive])
 
   return (
-    <div className="ambient flex h-full gap-2 p-2">
-      <Sidebar
-        accounts={accounts}
-        statuses={mailbox.statuses}
-        inbox={inbox}
-        folder={folder}
-        selected={selected}
-        onSelectFolder={(next) => {
-          setFolder(next)
-          setSelected('all')
-          setOpenKey(null)
-          setFocusKey(null)
-        }}
-        onSelect={(id) => {
-          setSelected(id)
-          setOpenKey(null)
-        }}
-        onAddAccount={() => setAddOpen(true)}
-        onRemoveAccount={(account) => void removeAccount(account)}
-      />
-
-      {openMail ? (
-        <MailScreen
-          mail={openMail}
-          account={accountById.get(openMail.accountId)}
-          onBack={back}
-          onToggleArchive={toggleArchive}
-        />
-      ) : (
-        <InboxScreen
-          title={title}
-          folder={folder}
-          mails={visible}
+    <div className="ambient flex h-full flex-col">
+      <TitleBar />
+      <div className="flex min-h-0 flex-1 gap-2 px-2 pb-2">
+        <Sidebar
           accounts={accounts}
-          loaded={
-            folder === 'archive' ? !archived.loading || archived.mails.length > 0 : mailbox.loaded
-          }
-          archive={folder === 'archive' ? archived : undefined}
-          focusKey={focusKey}
-          onOpen={open}
-          onToggleArchive={toggleArchive}
+          statuses={mailbox.statuses}
+          inbox={inbox}
+          folder={folder}
+          selected={selected}
+          onSelectFolder={(next) => {
+            setFolder(next)
+            setSelected('all')
+            setOpenKey(null)
+            setFocusKey(null)
+          }}
+          onSelect={(id) => {
+            setSelected(id)
+            setOpenKey(null)
+          }}
           onAddAccount={() => setAddOpen(true)}
+          onRemoveAccount={(account) => void removeAccount(account)}
         />
-      )}
+
+        {openMail ? (
+          <MailScreen
+            mail={openMail}
+            account={accountById.get(openMail.accountId)}
+            onBack={back}
+            onToggleArchive={toggleArchive}
+          />
+        ) : (
+          <InboxScreen
+            title={title}
+            folder={folder}
+            mails={visible}
+            accounts={accounts}
+            loaded={
+              folder === 'archive' ? !archived.loading || archived.mails.length > 0 : mailbox.loaded
+            }
+            archive={folder === 'archive' ? archived : undefined}
+            focusKey={focusKey}
+            onOpen={open}
+            onToggleArchive={toggleArchive}
+            onAddAccount={() => setAddOpen(true)}
+          />
+        )}
+      </div>
 
       <AddAccountDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => void refresh()} />
       <Toast key={toast?.id} toast={toast} onDismiss={dismissToast} />
