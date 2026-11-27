@@ -23,11 +23,10 @@ const CATEGORY_LABEL: Record<MailCategory, string> = {
   spam: 'Spam'
 }
 
-const DAY_MS = 86_400_000
-
 /**
- * Defensive by design: only mails Claude has analysed, never urgent or important ones,
- * and unread mail only when it is spam or has expired.
+ * Only mails Claude has analysed, never urgent or important ones. Unread mail only
+ * when it is spam, an ad, a newsletter or has expired; read notifications and other
+ * throwaway mail too.
  */
 export function suggestCleanup(inbox: MailSummary[], now = new Date()): CleanupSuggestion[] {
   const today = localDay(now)
@@ -56,6 +55,17 @@ export function suggestCleanup(inbox: MailSummary[], now = new Date()): CleanupS
       })
       continue
     }
+    // Ads and newsletters can go even unread.
+    const bulk = analysis.category === 'promotion' || analysis.category === 'newsletter'
+    if (bulk && pending.length === 0) {
+      suggestions.push({
+        mail,
+        action: 'archive',
+        reason: CATEGORY_LABEL[analysis.category],
+        dateIndexes: []
+      })
+      continue
+    }
     if (mail.unread) continue
 
     if (pending.length > 0) {
@@ -78,8 +88,7 @@ export function suggestCleanup(inbox: MailSummary[], now = new Date()): CleanupS
       continue
     }
 
-    const ageDays = (now.getTime() - new Date(mail.date).getTime()) / DAY_MS
-    if (analysis.disposable && ageDays >= 1) {
+    if (analysis.disposable || analysis.category === 'notification') {
       suggestions.push({
         mail,
         action: 'archive',

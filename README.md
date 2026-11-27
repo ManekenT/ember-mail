@@ -50,9 +50,9 @@ npm run build:win  # build the Windows installer into dist/
   the date as due date.
 - **Clean inbox** (inbox header) lists what can go, to review before anything happens:
   mails with upcoming dates (added to Todoist, then archived), and mails to archive:
-  spam, expired mail, and read mail with no lasting value (newsletters, promotions,
-  notifications) older than a day. It is defensive: urgent and important mail is never
-  suggested, and unread mail only when it is spam or expired. Undo moves everything back.
+  spam, promotions, newsletters and expired mail (even unread), and read notifications
+  and other mail with no lasting value. Urgent and important mail is never suggested.
+  Undo moves everything back.
 
 ## Releases and updates
 
