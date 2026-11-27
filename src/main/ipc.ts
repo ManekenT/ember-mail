@@ -25,7 +25,8 @@ import type {
   DraftRequest,
   MailAnalysis,
   MailFolder,
-  OutgoingMail
+  OutgoingMail,
+  SearchResult
 } from '../shared/types'
 
 export function registerIpc(mail: MailManager): void {
@@ -73,7 +74,7 @@ export function registerIpc(mail: MailManager): void {
   )
 
   ipcMain.handle('mail:get', (_event, accountId: string, uid: number, folder?: MailFolder) =>
-    mail.connection(accountId).getMail(uid, folder === 'archive' ? 'archive' : 'inbox')
+    mail.connection(accountId).getMail(uid, folder ?? 'inbox')
   )
 
   ipcMain.handle('mail:archive', async (_event, accountId: string, uid: number) => {
@@ -86,7 +87,7 @@ export function registerIpc(mail: MailManager): void {
   )
 
   ipcMain.handle('mail:source', (_event, accountId: string, uid: number, folder?: MailFolder) =>
-    mail.connection(accountId).getSource(uid, folder === 'archive' ? 'archive' : 'inbox')
+    mail.connection(accountId).getSource(uid, folder ?? 'inbox')
   )
 
   ipcMain.handle('prefs:senderName', () => getPreferences().senderName ?? '')
@@ -142,6 +143,15 @@ export function registerIpc(mail: MailManager): void {
       },
       (text) => event.sender.send('ai:draft:text', request.requestId, text)
     )
+  })
+
+  ipcMain.handle('mail:search', async (_event, query: string): Promise<SearchResult> => {
+    const words = query
+      .split(/\s+/)
+      .filter((w) => w.length > 0)
+      .slice(0, 8)
+    if (words.length === 0) return { mails: [] }
+    return { mails: await mail.search(words, 30, 100) }
   })
 
   ipcMain.handle('settings:ai', () => aiSettings())

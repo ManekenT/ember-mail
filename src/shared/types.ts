@@ -38,7 +38,7 @@ export interface AccountInfo {
 export type AccountStatus =
   { state: 'connecting' } | { state: 'live' } | { state: 'error'; message: string }
 
-export type MailFolder = 'inbox' | 'archive'
+export type MailFolder = 'inbox' | 'archive' | 'sent'
 
 export interface MailSummary {
   /** `${accountId}:${folder}:${uid}`, unique across folders. */
@@ -57,6 +57,13 @@ export interface MailSummary {
   messageId?: string
   /** Claude's analysis of the mail, once there is one. Follows the mail into the archive. */
   analysis?: MailAnalysis
+  /** Sent mail only: the first recipient. */
+  toName?: string
+}
+
+export interface SearchResult {
+  /** Newest first, from Inbox, Archive and Sent of every account. */
+  mails: MailSummary[]
 }
 
 export type MailCategory =
@@ -222,6 +229,11 @@ export interface EmberApi {
    */
   draftReply(request: DraftRequest): Promise<string>
   onDraftText(callback: (requestId: string, text: string) => void): () => void
+  /**
+   * Searches Inbox, Archive and Sent of all accounts. Every word must appear in the
+   * sender, recipients, subject or text.
+   */
+  searchMail(query: string): Promise<SearchResult>
   /** The mail's raw source (headers and MIME body) as text. */
   getMailSource(accountId: string, uid: number, folder?: MailFolder): Promise<string>
   getAiSettings(): Promise<AiSettings>

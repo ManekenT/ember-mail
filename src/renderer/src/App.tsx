@@ -9,10 +9,12 @@ import { TitleBar } from '@renderer/components/TitleBar'
 import { Toast, type ToastMessage } from '@renderer/components/Toast'
 import { useArchive } from '@renderer/hooks/useArchive'
 import { useMailbox } from '@renderer/hooks/useMailbox'
+import { useSearch } from '@renderer/hooks/useSearch'
 import { InboxScreen } from '@renderer/screens/InboxScreen'
 import { cleanError } from '@renderer/lib/errors'
 import { ComposeScreen } from '@renderer/screens/ComposeScreen'
 import { MailScreen } from '@renderer/screens/MailScreen'
+import { SearchScreen } from '@renderer/screens/SearchScreen'
 import type { AccountInfo, MailFolder, MailSummary } from '../../shared/types'
 
 function App(): React.JSX.Element {
@@ -32,6 +34,10 @@ function App(): React.JSX.Element {
   /** Suggestions are taken once when the dialog opens, so the list holds still. */
   const [cleanup, setCleanup] = useState<CleanupSuggestion[] | null>(null)
   const [toast, setToast] = useState<ToastMessage | null>(null)
+  const search = useSearch()
+  const [searchOpen, setSearchOpen] = useState(false)
+  /** A mail opened from the search results. */
+  const [searchMail, setSearchMail] = useState<MailSummary | null>(null)
 
   const archived = useArchive(folder === 'archive')
   const { remove: removeArchived, reload: reloadArchived } = archived
@@ -184,12 +190,50 @@ function App(): React.JSX.Element {
     [selected, refresh]
   )
 
+  const openSearch = useCallback(() => {
+    setSearchOpen(true)
+    setSearchMail(null)
+    setCompose(null)
+  }, [])
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setSearchMail(null)
+  }, [])
+
+  /** Archiving (or moving back) from a search result goes back to the results without it. */
+  const toggleArchiveFromSearch = useCallback(
+    (mail: MailSummary) => {
+      toggleArchive(mail)
+      search.drop(mail.key)
+      setSearchMail(null)
+    },
+    [toggleArchive, search]
+  )
+
+  // Ctrl+K anywhere, or / outside a text field, opens the search.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      const inField = (event.target as HTMLElement).closest('input, textarea, select')
+      const ctrlK = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k'
+      if (ctrlK || (event.key === '/' && !inField && !event.ctrlKey && !event.altKey)) {
+        if (addOpen || settingsOpen || cleanup) return
+        event.preventDefault()
+        openSearch()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [addOpen, settingsOpen, cleanup, openSearch])
+
   // Notification click → open that mail.
   useEffect(
     () =>
       window.api.onOpenMail((accountId, uid) => {
         setFolder('inbox')
         setSelected('all')
+        setSearchOpen(false)
+        setSearchMail(null)
         const key = `${accountId}:inbox:${uid}`
         setOpenKey(key)
         setFocusKey(key)
@@ -210,6 +254,18 @@ function App(): React.JSX.Element {
       )
         return
       if (event.ctrlKey || event.metaKey || event.altKey) return
+
+      if (searchOpen) {
+        // The search field handles its own Esc; here: a mail opened from the results.
+        const key = event.key.toLowerCase()
+        if (!searchMail) return
+        if (key === 'escape') setSearchMail(null)
+        else if (key === 'e' && searchMail.folder !== 'sent') toggleArchiveFromSearch(searchMail)
+        else if (key === 'r' && searchMail.folder !== 'sent') setCompose({ replyTo: searchMail })
+        else return
+        event.preventDefault()
+        return
+      }
 
       const currentKey = openKey ?? focusKey
       const index = visible.findIndex((m) => m.key === currentKey)
@@ -242,12 +298,15 @@ function App(): React.JSX.Element {
     visible,
     open,
     back,
-    toggleArchive
+    toggleArchive,
+    searchOpen,
+    searchMail,
+    toggleArchiveFromSearch
   ])
 
   return (
     <div className="ambient flex h-full flex-col">
-      <TitleBar />
+      <TitleBar onSearch={accounts.length > 0 ? openSearch : undefined} />
       <div className="flex min-h-0 flex-1 gap-2 px-2 pb-2">
         <Sidebar
           accounts={accounts}
@@ -256,12 +315,14 @@ function App(): React.JSX.Element {
           folder={folder}
           selected={selected}
           onSelectFolder={(next) => {
+            closeSearch()
             setFolder(next)
             setSelected('all')
             setOpenKey(null)
             setFocusKey(null)
           }}
           onSelect={(id) => {
+            closeSearch()
             setSelected(id)
             setOpenKey(null)
           }}
@@ -292,6 +353,24 @@ function App(): React.JSX.Element {
               setEditAccount(account)
               setAddOpen(true)
             }}
+          />
+        ) : searchOpen && searchMail ? (
+          <MailScreen
+            mail={searchMail}
+            account={accountById.get(searchMail.accountId)}
+            backLabel="Results"
+            onBack={() => setSearchMail(null)}
+            onToggleArchive={toggleArchiveFromSearch}
+            hasTodoist={mailbox.ai?.hasTodoistToken ?? false}
+            onReply={(mail) => setCompose({ replyTo: mail })}
+            onOpenSettings={() => setSettingsOpen(true)}
+          />
+        ) : searchOpen ? (
+          <SearchScreen
+            search={search}
+            accounts={accounts}
+            onOpen={setSearchMail}
+            onClose={closeSearch}
           />
         ) : openMail ? (
           <MailScreen

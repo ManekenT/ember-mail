@@ -19,6 +19,7 @@ const api: EmberApi = {
     ipcRenderer.on('ai:draft:text', listener)
     return () => ipcRenderer.removeListener('ai:draft:text', listener)
   },
+  searchMail: (query) => ipcRenderer.invoke('mail:search', query),
   removeAccount: (id) => ipcRenderer.invoke('accounts:remove', id),
   getStatuses: () => ipcRenderer.invoke('accounts:statuses'),
   listInbox: () => ipcRenderer.invoke('inbox:list'),

@@ -42,6 +42,9 @@ npm run build:win  # build the Windows installer into dist/
   <kbd>E</kbd> archive.
 - HTML mails are sanitized (DOMPurify) and shown in a sandboxed frame that can't run
   scripts. Links open in your browser.
+- **Search** (title bar, <kbd>Ctrl</kbd>+<kbd>K</kbd> or <kbd>/</kbd>) looks through Inbox, Archive
+  and Sent of every account on the server. Every word must appear in the sender, recipients,
+  subject or text. Results open like any mail; <kbd>Esc</kbd> goes back to them.
 - The source button in a mail's toolbar shows its raw source (headers and MIME parts).
 
 ## Claude

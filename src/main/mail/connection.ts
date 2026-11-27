@@ -45,6 +45,8 @@ export class AccountConnection {
   private archived = new Map<number, MailSummary>()
   private archiveUidValidity: bigint | null = null
   private archivePath: string | null = null
+  /** Undefined until looked up; null when the account has no Sent folder. */
+  private sentPath: string | null | undefined = undefined
   private initialSyncDone = false
   /** UIDs that reappear in the inbox because of an undo; no notification for those. */
   private quietUids = new Set<number>()
@@ -83,7 +85,7 @@ export class AccountConnection {
 
   /** The raw source of a mail, as the server stores it. Doesn't mark it read. */
   async getSource(uid: number, folder: Folder = 'inbox'): Promise<string> {
-    const path = folder === 'archive' ? await this.findArchiveFolder() : INBOX
+    const path = await this.pathFor(folder)
     return this.inFolder(path, async (client) => {
       const message = await client.fetchOne(String(uid), { source: true }, { uid: true })
       if (!message || !message.source) throw new Error('This mail no longer exists.')
@@ -92,12 +94,17 @@ export class AccountConnection {
   }
 
   async getMail(uid: number, folder: Folder = 'inbox'): Promise<MailDetail> {
-    const path = folder === 'archive' ? await this.findArchiveFolder() : INBOX
+    const path = await this.pathFor(folder)
     const parsed = await this.inFolder(path, async (client) => {
       const message = await client.fetchOne(String(uid), { source: true }, { uid: true })
       if (!message || !message.source) throw new Error('This mail no longer exists.')
 
-      const summary = folder === 'inbox' ? this.messages.get(uid) : this.archived.get(uid)
+      const summary =
+        folder === 'inbox'
+          ? this.messages.get(uid)
+          : folder === 'archive'
+            ? this.archived.get(uid)
+            : undefined
       if (summary?.unread) {
         await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true })
         summary.unread = false
@@ -128,7 +135,7 @@ export class AccountConnection {
 
   /** Flags a mail as answered after a reply went out. */
   async markAnswered(uid: number, folder: Folder): Promise<void> {
-    const path = folder === 'archive' ? await this.findArchiveFolder() : INBOX
+    const path = await this.pathFor(folder)
     await this.inFolder(path, (client) =>
       client.messageFlagsAdd(String(uid), ['\\Answered'], { uid: true })
     )
@@ -137,12 +144,41 @@ export class AccountConnection {
   /** Puts a copy of a sent mail into the Sent folder, as other mail apps do. */
   async saveToSent(raw: Buffer): Promise<void> {
     const client = this.requireClient()
-    const folders = await client.list()
-    const sent =
-      folders.find((f) => f.specialUse === '\\Sent') ??
-      folders.find((f) => /^(sent|gesendet|sent items|sent messages)$/i.test(f.name))
-    const path = sent?.path ?? (await client.mailboxCreate('Sent')).path
+    const path = (await this.findSentFolder()) ?? (await client.mailboxCreate('Sent')).path
+    this.sentPath = path
     await client.append(path, raw, ['\\Seen'])
+  }
+
+  /**
+   * Searches Inbox, Archive and Sent on the server. Every word must appear somewhere in
+   * the headers (sender, recipients, subject) or the text. Each folder gives its `limit`
+   * newest matches.
+   */
+  async search(words: string[], limit: number): Promise<MailSummary[]> {
+    const found: MailSummary[] = []
+    for (const folder of ['inbox', 'archive', 'sent'] as const) {
+      const path = folder === 'sent' ? await this.findSentFolder() : await this.pathFor(folder)
+      if (!path) continue
+      const results = await this.inFolder(path, async (client) => {
+        const uids = await searchUids(client, words)
+        const page = uids.sort((a, b) => b - a).slice(0, limit)
+        if (page.length === 0) return []
+        const fetched = await client.fetchAll(page.join(','), SUMMARY_QUERY, { uid: true })
+        const mails: MailSummary[] = []
+        for (const message of fetched) {
+          const { summary } = await this.summarize(message, folder)
+          // Keep the live entry for inbox mails, so read state stays in sync.
+          const mail = (folder === 'inbox' && this.messages.get(summary.uid)) || summary
+          if (folder === 'archive' && !this.archived.has(summary.uid)) {
+            this.archived.set(summary.uid, summary)
+          }
+          mails.push(mail)
+        }
+        return mails
+      })
+      found.push(...results)
+    }
+    return found
   }
 
   /**
@@ -358,11 +394,20 @@ export class AccountConnection {
   }
 
   private async toSummary(message: FetchMessageObject, folder: Folder): Promise<MailSummary> {
+    const { summary, text } = await this.summarize(message, folder)
+    if (folder === 'inbox') this.texts.set(message.uid, text)
+    return summary
+  }
+
+  private async summarize(
+    message: FetchMessageObject,
+    folder: Folder
+  ): Promise<{ summary: MailSummary; text: string }> {
     const from = message.envelope?.from?.[0]
+    const to = message.envelope?.to?.[0]
     const date = message.envelope?.date ?? message.internalDate ?? new Date()
     const text = cleanPreview(message.source ? await bodyText(message.source) : '')
-    if (folder === 'inbox') this.texts.set(message.uid, text.slice(0, ANALYSIS_TEXT_CHARS))
-    return {
+    const summary: MailSummary = {
       key: `${this.account.id}:${folder}:${message.uid}`,
       accountId: this.account.id,
       folder,
@@ -373,8 +418,31 @@ export class AccountConnection {
       preview: text.slice(0, 240),
       date: new Date(date).toISOString(),
       unread: !message.flags?.has('\\Seen'),
-      messageId: message.envelope?.messageId || undefined
+      messageId: message.envelope?.messageId || undefined,
+      ...(folder === 'sent' && to ? { toName: to.name || to.address || '' } : {})
     }
+    return { summary, text: text.slice(0, ANALYSIS_TEXT_CHARS) }
+  }
+
+  private async pathFor(folder: Folder): Promise<string> {
+    if (folder === 'inbox') return INBOX
+    if (folder === 'archive') return this.findArchiveFolder()
+    const sent = await this.findSentFolder()
+    if (!sent) throw new Error('This account has no Sent folder.')
+    return sent
+  }
+
+  /** The server's Sent folder, or one named like it. Null when there is none. */
+  private async findSentFolder(): Promise<string | null> {
+    if (this.sentPath !== undefined) return this.sentPath
+    const folders = await this.requireClient().list()
+    const sent =
+      folders.find((f) => f.specialUse === '\\Sent') ??
+      folders.find((f) =>
+        /^(sent|gesendet|sent items|sent messages|gesendete elemente)$/i.test(f.name)
+      )
+    this.sentPath = sent?.path ?? null
+    return this.sentPath
   }
 
   private async findArchiveFolder(): Promise<string> {
@@ -393,6 +461,17 @@ export class AccountConnection {
     }
     return this.archivePath
   }
+}
+
+/** UIDs in the selected folder that contain every word (in headers or text). */
+async function searchUids(client: ImapFlow, words: string[]): Promise<number[]> {
+  let uids: number[] | null = null
+  for (const word of words) {
+    const matches: number[] = (await client.search({ text: word }, { uid: true })) || []
+    uids = uids === null ? matches : uids.filter((uid) => matches.includes(uid))
+    if (uids.length === 0) break
+  }
+  return uids ?? []
 }
 
 const SUMMARY_QUERY = {

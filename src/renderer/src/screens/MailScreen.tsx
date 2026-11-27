@@ -1,4 +1,4 @@
-import { Archive, ChevronLeft, FileCode, Inbox, Reply } from 'lucide-react'
+import { Archive, ChevronLeft, FileCode, Inbox, Reply, Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { AnalysisCard } from '@renderer/components/AnalysisCard'
@@ -21,6 +21,8 @@ interface MailScreenProps {
   hasTodoist: boolean
   onReply: (mail: MailSummary) => void
   onOpenSettings: () => void
+  /** The back button's label; defaults to the mail's folder. */
+  backLabel?: string
 }
 
 export function MailScreen({
@@ -30,7 +32,8 @@ export function MailScreen({
   onToggleArchive,
   hasTodoist,
   onReply,
-  onOpenSettings
+  onOpenSettings,
+  backLabel
 }: MailScreenProps): React.JSX.Element {
   const [detail, setDetail] = useState<MailDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -52,6 +55,7 @@ export function MailScreen({
 
   const sender = detail?.from[0]
   const inArchive = mail.folder === 'archive'
+  const sent = mail.folder === 'sent'
 
   return (
     <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-hairline/[.06] bg-background/70">
@@ -60,14 +64,16 @@ export function MailScreen({
         <div className="sheen pointer-events-auto flex items-center gap-1 rounded-full border border-hairline/10 bg-glass/60 p-1 backdrop-blur-2xl backdrop-saturate-150">
           <Button variant="ghost" className="px-3" onClick={onBack}>
             <ChevronLeft />
-            {inArchive ? 'Archive' : 'Inbox'} <Kbd>Esc</Kbd>
+            {backLabel ?? (inArchive ? 'Archive' : sent ? 'Sent' : 'Inbox')} <Kbd>Esc</Kbd>
           </Button>
           <span className="mx-1 h-5 w-px bg-hairline/10" />
-          <Button variant="ghost" onClick={() => onReply(mail)}>
-            <Reply />
-            Reply <Kbd>R</Kbd>
-          </Button>
-          {inArchive ? (
+          {!sent && (
+            <Button variant="ghost" onClick={() => onReply(mail)}>
+              <Reply />
+              Reply <Kbd>R</Kbd>
+            </Button>
+          )}
+          {sent ? null : inArchive ? (
             <Button variant="ghost" onClick={() => onToggleArchive(mail)}>
               <Inbox />
               Move to inbox <Kbd>E</Kbd>
@@ -96,9 +102,17 @@ export function MailScreen({
 
       <div className="min-h-0 flex-1 overflow-auto">
         <article className="mx-auto grid max-w-[760px] animate-in gap-6 px-10 pt-[88px] pb-12 fade-in">
-          {inArchive && account && (
+          {(inArchive || sent) && account && (
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-hairline/10 bg-hairline/[.04] px-3 py-1 text-xs text-muted-foreground">
-              <Archive className="size-3.5" /> Archived · {account.name} › Archive
+              {sent ? (
+                <>
+                  <Send className="size-3.5" /> Sent · {account.name} › Sent
+                </>
+              ) : (
+                <>
+                  <Archive className="size-3.5" /> Archived · {account.name} › Archive
+                </>
+              )}
             </div>
           )}
           <h1 className="text-[30px] leading-tight font-semibold tracking-tight text-balance">
@@ -122,7 +136,11 @@ export function MailScreen({
               {account && (
                 <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                   <span className={cn('size-2 rounded-full', accountDot(account.colorIndex))} />
-                  to {account.email} · {account.name}
+                  to{' '}
+                  {sent
+                    ? detail?.to.map((a) => a.name || a.address).join(', ') || mail.toName
+                    : account.email}{' '}
+                  · {account.name}
                 </div>
               )}
             </div>

@@ -92,6 +92,35 @@ export class MailManager {
     }
   }
 
+  /**
+   * Searches every connected account. A mail in several folders (a copy in Sent of a
+   * mail to yourself) counts once, inbox first. Accounts that fail are left out.
+   */
+  async search(words: string[], perFolder: number, limit: number): Promise<MailSummary[]> {
+    const live = [...this.connections.values()].filter((c) => c.status.state === 'live')
+    const results = await Promise.all(
+      live.map((c) =>
+        c.search(words, perFolder).catch((error) => {
+          console.error(`[${c.account.name}] search failed`, error)
+          return []
+        })
+      )
+    )
+    const seen = new Set<string>()
+    const mails = results
+      .flat()
+      .filter((mail) => {
+        const id = mail.messageId ? `${mail.accountId}:${mail.messageId}` : mail.key
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+      .map((mail) => this.withAnalysis(mail))
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .slice(0, limit)
+    return mails
+  }
+
   connection(accountId: string): AccountConnection {
     const connection = this.connections.get(accountId)
     if (!connection) throw new Error(`Unknown account ${accountId}`)
