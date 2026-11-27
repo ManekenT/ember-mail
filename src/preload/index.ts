@@ -28,6 +28,7 @@ const api: EmberApi = {
   getAiSettings: () => ipcRenderer.invoke('settings:ai'),
   setClaudeKey: (key) => ipcRenderer.invoke('settings:claudeKey', key),
   setTodoistToken: (token) => ipcRenderer.invoke('settings:todoistToken', token),
+  checkTodoist: (analysisKeys) => ipcRenderer.invoke('todoist:check', analysisKeys),
   addToTodoist: (analysisKey, dateIndex) =>
     ipcRenderer.invoke('todoist:add', analysisKey, dateIndex),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

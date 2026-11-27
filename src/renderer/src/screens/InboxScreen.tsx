@@ -1,5 +1,5 @@
-import { Archive, CalendarDays, Inbox, LoaderCircle, Search, X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { Archive, CalendarDays, Inbox, LoaderCircle, Search, Sparkles, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Avatar } from '@renderer/components/Avatar'
 import { EmberLogo } from '@renderer/components/EmberLogo'
@@ -24,6 +24,8 @@ interface InboxScreenProps {
   /** Archives an inbox mail, or moves an archived mail back to the inbox. */
   onToggleArchive: (mail: MailSummary) => void
   onAddAccount: () => void
+  /** Shown in the inbox when Claude is set up. */
+  onCleanInbox?: () => Promise<void>
 }
 
 /** The mail list, for the inboxes and for the archive. */
@@ -37,7 +39,8 @@ export function InboxScreen({
   focusKey,
   onOpen,
   onToggleArchive,
-  onAddAccount
+  onAddAccount,
+  onCleanInbox
 }: InboxScreenProps): React.JSX.Element {
   const inArchive = folder === 'archive'
   const group = inArchive ? monthGroup : dayGroup
@@ -45,6 +48,7 @@ export function InboxScreen({
   const unread = mails.filter((m) => m.unread).length
   const focusRef = useRef<HTMLDivElement>(null)
   const today = localDay()
+  const [cleaning, setCleaning] = useState(false)
 
   useEffect(() => {
     focusRef.current?.scrollIntoView({ block: 'nearest' })
@@ -97,6 +101,25 @@ export function InboxScreen({
                 </button>
               )}
             </div>
+          )}
+          {!inArchive && onCleanInbox && mails.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              disabled={cleaning}
+              onClick={() => {
+                setCleaning(true)
+                void onCleanInbox().finally(() => setCleaning(false))
+              }}
+            >
+              {cleaning ? (
+                <LoaderCircle className="animate-spin" />
+              ) : (
+                <Sparkles className="text-primary" />
+              )}
+              Clean inbox
+            </Button>
           )}
         </header>
 

@@ -1,5 +1,5 @@
 import { CalendarDays, Check, LoaderCircle, Plus, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { UrgencyBadge } from '@renderer/components/UrgencyBadge'
 import { Button } from '@renderer/components/ui/button'
@@ -29,6 +29,22 @@ export function AnalysisCard({
   const [adding, setAdding] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const today = localDay()
+
+  // A date may already be in Todoist, added by hand or from another mail.
+  useEffect(() => {
+    const needsCheck = initial.dates.some((d) => !d.todoistTaskId && d.date >= localDay())
+    if (!hasTodoist || !needsCheck) return
+    let cancelled = false
+    window.api
+      .checkTodoist([initial.key])
+      .then((updated) => {
+        if (!cancelled && updated[initial.key]) setAnalysis(updated[initial.key])
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [initial, hasTodoist])
 
   const add = async (index: number): Promise<void> => {
     setAdding(index)
