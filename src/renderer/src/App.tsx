@@ -175,7 +175,7 @@ function App(): React.JSX.Element {
   }, [addOpen, openKey, focusKey, visible, open, back, toggleArchive])
 
   return (
-    <div className="flex h-full">
+    <div className="ambient flex h-full gap-2 p-2">
       <Sidebar
         accounts={accounts}
         statuses={mailbox.statuses}

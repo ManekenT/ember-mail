@@ -8,7 +8,11 @@
 
 :root {
   /* Light theme, only when chosen. Dark is the default. */
-  --radius: 0.5rem;
+  --radius: 0.75rem;
+  --glass: hsl(0 0% 100%);
+  --hairline: hsl(240 10% 10%);
+  --glow-1: hsl(22 95% 60%);
+  --glow-2: hsl(200 70% 60%);
   --background: hsl(0 0% 100%);
   --foreground: hsl(240 10% 4%);
   --card: hsl(0 0% 100%);
@@ -40,30 +44,38 @@
   --logo-ring: hsl(240 6% 90%);
 }
 
-/* Tokens from the Ember Mail mockup (zinc-dark base, ember accent). */
+/* Tokens from the approved draft 3 design (zinc-dark base, ember accent, frosted glass). */
 .dark {
-  --background: hsl(240 10% 4%);
+  --background: hsl(240 8% 5%);
   --foreground: hsl(0 0% 98%);
-  --card: hsl(240 8% 6.5%);
+  --card: hsl(240 7% 9%);
   --card-foreground: hsl(0 0% 98%);
-  --popover: hsl(240 8% 6.5%);
+  --popover: hsl(240 8% 12%);
   --popover-foreground: hsl(0 0% 98%);
   --primary: hsl(22 92% 58%);
   --primary-foreground: hsl(20 40% 7%);
-  --secondary: hsl(240 4% 16%);
+  --secondary: hsl(240 5% 15%);
   --secondary-foreground: hsl(0 0% 98%);
-  --muted: hsl(240 4% 16%);
-  --muted-foreground: hsl(240 5% 65%);
-  --accent: hsl(240 4% 14%);
+  --muted: hsl(240 5% 15%);
+  --muted-foreground: hsl(240 5% 66%);
+  --accent: hsl(240 5% 15%);
   --accent-foreground: hsl(0 0% 98%);
   --destructive: hsl(0 63% 50%);
-  --border: hsl(240 4% 16%);
-  --input: hsl(240 4% 18%);
+  --border: hsl(240 5% 17%);
+  --input: hsl(240 5% 20%);
   --ring: hsl(22 92% 58%);
-  --ember: hsl(22 95% 64%);
-  --sidebar: hsl(240 10% 4%);
+  --ember: hsl(22 95% 65%);
+  --sidebar: hsl(240 8% 5%);
   --sidebar-foreground: hsl(0 0% 98%);
-  --sidebar-border: hsl(240 4% 16%);
+  --sidebar-border: hsl(240 5% 17%);
+  --account-1: hsl(176 55% 50%);
+  --account-2: hsl(220 85% 68%);
+  --account-3: hsl(100 45% 56%);
+  --live: hsl(142 60% 52%);
+  --glass: hsl(240 8% 12%);
+  --hairline: hsl(0 0% 100%);
+  --glow-1: hsl(22 95% 55%);
+  --glow-2: hsl(200 70% 45%);
   --logo-tile: hsl(0 0% 96%);
   --logo-ring: hsl(0 0% 100% / 0.08);
 }
@@ -72,6 +84,8 @@
   --font-sans: 'Geist Variable', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
   --color-ember: var(--ember);
+  --color-glass: var(--glass);
+  --color-hairline: var(--hairline);
   --color-account-1: var(--account-1);
   --color-account-2: var(--account-2);
   --color-account-3: var(--account-3);
@@ -116,5 +130,42 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+  }
+}
+
+/* Ambient light behind the frosted panels: an ember glow top left, a cool one bottom right. */
+@utility ambient {
+  background:
+    radial-gradient(
+      42rem 26rem at 8% -10%,
+      color-mix(in oklab, var(--glow-1) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      36rem 30rem at 105% 110%,
+      color-mix(in oklab, var(--glow-2) 16%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      28rem 18rem at 60% 30%,
+      color-mix(in oklab, var(--glow-1) 5%, transparent),
+      transparent 70%
+    ),
+    var(--background);
+}
+
+/* The specular edge of a glass surface: a 1px inner highlight plus a soft drop shadow. */
+@utility sheen {
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--hairline) 8%, transparent),
+    0 10px 30px -12px rgb(0 0 0 / 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
   }
 }

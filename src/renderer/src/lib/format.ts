@@ -1,10 +1,10 @@
 const AVATAR_COLORS = [
-  'bg-orange-700',
-  'bg-teal-700',
-  'bg-indigo-600',
-  'bg-fuchsia-700',
-  'bg-green-700',
-  'bg-rose-700'
+  'bg-gradient-to-br from-orange-400 to-rose-600',
+  'bg-gradient-to-br from-teal-300 to-cyan-700',
+  'bg-gradient-to-br from-indigo-300 to-indigo-700',
+  'bg-gradient-to-br from-fuchsia-300 to-purple-700',
+  'bg-gradient-to-br from-lime-300 to-green-700',
+  'bg-gradient-to-br from-amber-200 to-orange-600'
 ]
 
 const ACCOUNT_DOTS = ['bg-account-1', 'bg-account-2', 'bg-account-3']

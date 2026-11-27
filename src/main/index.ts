@@ -18,6 +18,7 @@ function createWindow(): void {
     minHeight: 600,
     title: 'Ember Mail',
     show: false,
+    backgroundColor: '#0c0c0e',
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {

@@ -47,32 +47,54 @@ export function MailScreen({
   const inArchive = mail.folder === 'archive'
 
   return (
-    <main className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 border-b px-4 py-2.5">
-        <Button variant="ghost" className="px-3" onClick={onBack}>
-          <ChevronLeft />
-          {inArchive ? 'Archive' : 'Inbox'} <Kbd>Esc</Kbd>
-        </Button>
-        <div className="mx-2 h-5 w-px bg-border" />
-        <Button onClick={() => onToggleArchive(mail)}>
-          {inArchive ? <Inbox /> : <Archive />}
-          {inArchive ? 'Move to inbox' : 'Archive'}
-          <Kbd className="border-primary-foreground/30 bg-transparent text-primary-foreground">
-            E
-          </Kbd>
-        </Button>
-        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-          {position.index + 1} of {position.total}
-        </span>
+    <main className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-hairline/[.06] bg-background/70">
+      {/* Floating glass toolbar; the mail scrolls underneath it. */}
+      <div className="pointer-events-none absolute inset-x-0 top-3 z-10 flex justify-center px-4">
+        <div className="sheen pointer-events-auto flex items-center gap-1 rounded-full border border-hairline/10 bg-glass/60 p-1 backdrop-blur-2xl backdrop-saturate-150">
+          <Button variant="ghost" className="px-3" onClick={onBack}>
+            <ChevronLeft />
+            {inArchive ? 'Archive' : 'Inbox'} <Kbd>Esc</Kbd>
+          </Button>
+          <span className="mx-1 h-5 w-px bg-hairline/10" />
+          {inArchive ? (
+            <Button variant="ghost" onClick={() => onToggleArchive(mail)}>
+              <Inbox />
+              Move to inbox <Kbd>E</Kbd>
+            </Button>
+          ) : (
+            <Button onClick={() => onToggleArchive(mail)}>
+              <Archive />
+              Archive
+              <Kbd className="border-primary-foreground/25 bg-transparent text-primary-foreground/80">
+                E
+              </Kbd>
+            </Button>
+          )}
+          <span className="mx-1 h-5 w-px bg-hairline/10" />
+          <span className="px-2 text-xs text-muted-foreground tabular-nums">
+            {position.index + 1} / {position.total}
+          </span>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <article className="mx-auto grid max-w-[760px] animate-in gap-6 px-10 pt-9 pb-10 fade-in">
-          <h1 className="text-[28px] leading-tight font-semibold tracking-tight text-balance">
+        <article className="mx-auto grid max-w-[760px] animate-in gap-6 px-10 pt-[88px] pb-12 fade-in">
+          {inArchive && account && (
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-hairline/10 bg-hairline/[.04] px-3 py-1 text-xs text-muted-foreground">
+              <Archive className="size-3.5" /> Archived · {account.name} › Archive
+            </div>
+          )}
+          <h1 className="text-[30px] leading-tight font-semibold tracking-tight text-balance">
             {mail.subject}
           </h1>
-          <div className="flex items-start gap-3">
-            <Avatar name={mail.fromName} address={sender?.address || mail.fromAddress} />
+          <div className="flex items-center gap-3">
+            <Avatar
+              name={mail.fromName}
+              address={sender?.address || mail.fromAddress}
+              colorIndex={account?.colorIndex}
+              accountName={account?.name}
+              size={46}
+            />
             <div className="grid min-w-0 gap-0.5">
               <div className="font-semibold">
                 {sender?.name || mail.fromName}{' '}
@@ -101,7 +123,7 @@ export function MailScreen({
               {[80, 95, 60].map((width) => (
                 <div
                   key={width}
-                  className="h-4 animate-pulse rounded bg-muted"
+                  className="h-4 animate-pulse rounded-full bg-hairline/[.06]"
                   style={{ width: `${width}%` }}
                 />
               ))}

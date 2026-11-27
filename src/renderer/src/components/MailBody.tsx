@@ -13,7 +13,11 @@ interface MailBodyProps {
  */
 export function MailBody({ html, text }: MailBodyProps): React.JSX.Element {
   if (!html) {
-    return <div className="max-w-[68ch] text-[15px] leading-7 whitespace-pre-wrap">{text}</div>
+    return (
+      <div className="max-w-[68ch] text-[15px] leading-7 whitespace-pre-wrap text-foreground/90">
+        {text}
+      </div>
+    )
   }
   return <HtmlBody html={html} />
 }
@@ -76,7 +80,7 @@ function HtmlBody({ html }: { html: string }): React.JSX.Element {
       sandbox="allow-same-origin"
       srcDoc={srcDoc}
       style={{ height }}
-      className="w-full rounded-lg border bg-white"
+      className="w-full rounded-2xl border border-hairline/10 bg-white"
     />
   )
 }
