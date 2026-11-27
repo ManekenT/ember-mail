@@ -1,38 +1,112 @@
-import { Archive, ArrowLeft } from 'lucide-react'
+import { Archive, ChevronLeft } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
+import { Avatar } from '@renderer/components/Avatar'
+import { Kbd } from '@renderer/components/Kbd'
+import { MailBody } from '@renderer/components/MailBody'
 import { Button } from '@renderer/components/ui/button'
-import type { MailSummary } from '@renderer/demo-data'
+import { cleanError } from '@renderer/lib/errors'
+import { accountDot, longDate } from '@renderer/lib/format'
+import { cn } from '@renderer/lib/utils'
+import type { AccountInfo, MailDetail, MailSummary } from '../../../shared/types'
 
 interface MailScreenProps {
   mail: MailSummary
+  account: AccountInfo | undefined
+  position: { index: number; total: number }
   onBack: () => void
-  onArchive: (id: string) => void
+  onArchive: (mail: MailSummary) => void
 }
 
-export function MailScreen({ mail, onBack, onArchive }: MailScreenProps): React.JSX.Element {
+export function MailScreen({
+  mail,
+  account,
+  position,
+  onBack,
+  onArchive
+}: MailScreenProps): React.JSX.Element {
+  const [detail, setDetail] = useState<MailDetail | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDetail(null)
+    setError(null)
+    window.api
+      .getMail(mail.accountId, mail.uid)
+      .then((result) => !cancelled && setDetail(result))
+      .catch((e: Error) => !cancelled && setError(cleanError(e)))
+    return () => {
+      cancelled = true
+    }
+  }, [mail.accountId, mail.uid])
+
+  const sender = detail?.from[0]
+
   return (
-    <div className="flex h-full flex-col">
-      <header className="flex items-center justify-between border-b px-6 py-3">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft />
-          Inbox
+    <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex items-center gap-2 border-b px-4 py-2.5">
+        <Button variant="ghost" className="px-3" onClick={onBack}>
+          <ChevronLeft />
+          Inbox <Kbd>Esc</Kbd>
         </Button>
-        <Button variant="outline" onClick={() => onArchive(mail.id)}>
+        <div className="mx-2 h-5 w-px bg-border" />
+        <Button onClick={() => onArchive(mail)}>
           <Archive />
           Archive
+          <Kbd className="border-primary-foreground/30 bg-transparent text-primary-foreground">
+            E
+          </Kbd>
         </Button>
-      </header>
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+          {position.index + 1} of {position.total}
+        </span>
+      </div>
 
-      <article className="mx-auto w-full max-w-[760px] flex-1 overflow-y-auto px-10 py-10">
-        <h1 className="text-[28px] font-semibold tracking-tight">{mail.subject}</h1>
-        <div className="mt-3 flex items-baseline justify-between text-sm text-muted-foreground">
-          <span>
-            <span className="font-medium text-foreground">{mail.from}</span> · {mail.account}
-          </span>
-          <span>{mail.date}</span>
-        </div>
-        <div className="mt-8 text-[15px] leading-7 whitespace-pre-line">{mail.body}</div>
-      </article>
-    </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        <article className="mx-auto grid max-w-[760px] animate-in gap-6 px-10 pt-9 pb-10 fade-in">
+          <h1 className="text-[28px] leading-tight font-semibold tracking-tight text-balance">
+            {mail.subject}
+          </h1>
+          <div className="flex items-start gap-3">
+            <Avatar name={mail.fromName} />
+            <div className="grid min-w-0 gap-0.5">
+              <div className="font-semibold">
+                {sender?.name || mail.fromName}{' '}
+                <span className="font-normal text-muted-foreground">
+                  &lt;{sender?.address || mail.fromAddress}&gt;
+                </span>
+              </div>
+              {account && (
+                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <span className={cn('size-2 rounded-full', accountDot(account.colorIndex))} />
+                  to {account.email} · {account.name}
+                </div>
+              )}
+            </div>
+            <div className="ml-auto text-sm whitespace-nowrap text-muted-foreground tabular-nums">
+              {longDate(mail.date)}
+            </div>
+          </div>
+
+          {error ? (
+            <p className="text-sm text-destructive">{error}</p>
+          ) : detail ? (
+            <MailBody html={detail.html} text={detail.text} />
+          ) : (
+            <div className="grid gap-3" aria-label="Loading">
+              {[80, 95, 60].map((width) => (
+                <div
+                  key={width}
+                  className="h-4 animate-pulse rounded bg-muted"
+                  style={{ width: `${width}%` }}
+                />
+              ))}
+            </div>
+          )}
+        </article>
+      </div>
+    </main>
   )
 }

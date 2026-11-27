@@ -22,6 +22,20 @@ npm run typecheck
 npm run build:win  # build the Windows installer into dist/
 ```
 
+## Using it
+
+- **Add account** in the sidebar: any IMAP account. The connection is tested before
+  saving, and the password is stored encrypted by Windows (Electron `safeStorage`).
+- The combined inbox stays live over IMAP IDLE, and new mail shows a Windows
+  notification. Clicking it opens the mail.
+- **Archive** moves a mail to the account's Archive folder (the server's `\Archive`
+  folder, else a folder named Archive, created if missing). Nothing is ever deleted.
+  The toast offers **Undo**.
+- Keys: <kbd>J</kbd>/<kbd>K</kbd> move, <kbd>Enter</kbd> open, <kbd>Esc</kbd> back,
+  <kbd>E</kbd> archive.
+- HTML mails are sanitized (DOMPurify) and shown in a sandboxed frame that can't run
+  scripts. Links open in your browser.
+
 ## Releases and updates
 
 - Every pull request builds the Windows installer in GitHub Actions. Download it
@@ -37,7 +51,7 @@ npm run build:win  # build the Windows installer into dist/
 
 ## Roadmap
 
-1. Project setup (this)
-2. v1: multiple IMAP accounts, combined live inbox, read, archive
+1. Project setup (done)
+2. v1: multiple IMAP accounts, combined live inbox, read, archive (done)
 3. Daily use for a week, fix what gets in the way
 4. v2: Claude integration, choose sender account, view source, wishlist

@@ -3,10 +3,15 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { setupAutoUpdates } from './updater'
+import { registerIpc } from './ipc'
+import { MailManager } from './mail/manager'
+
+let mainWindow: BrowserWindow | null = null
+const mail = new MailManager(() => mainWindow)
 
 function createWindow(): void {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 900,
@@ -17,25 +22,27 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true
     }
   })
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+  const window = mainWindow
+  window.on('ready-to-show', () => window.show())
+  window.on('closed', () => {
+    mainWindow = null
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
+  window.webContents.setWindowOpenHandler((details) => {
+    if (/^(https?|mailto):/i.test(details.url)) void shell.openExternal(details.url)
     return { action: 'deny' }
   })
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    window.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    window.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
 
@@ -53,6 +60,8 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  registerIpc(mail)
+  mail.startAll()
   createWindow()
   setupAutoUpdates()
 
@@ -66,6 +75,10 @@ app.whenReady().then(() => {
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
+app.on('before-quit', () => {
+  void mail.stopAll()
+})
+
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
