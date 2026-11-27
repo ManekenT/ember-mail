@@ -40,9 +40,7 @@ npm run build:win  # build the Windows installer into dist/
 ## Claude
 
 - **Settings** in the sidebar takes a Claude API key and a Todoist API token, both stored
-  encrypted by Windows. Without a key, the app uses the Anthropic CLI sign-in
-  (`ant auth login`) when this PC has one. Usage is billed to the Anthropic Console
-  organization either way.
+  encrypted by Windows.
 - Every inbox mail is analysed once by Claude Haiku 5.5: a one-line summary (shown in the
   list instead of the preview), a category, an urgency (Urgent and Important get a badge),
   dates (events, deadlines, expiry) and when the mail stops being relevant. Results are

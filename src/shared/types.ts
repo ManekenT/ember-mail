@@ -88,8 +88,6 @@ export interface MailAnalysis {
 
 export interface AiSettings {
   hasClaudeKey: boolean
-  /** No key saved, but the Anthropic CLI sign-in (`ant auth login`) on this PC works. */
-  claudeSignIn: boolean
   hasTodoistToken: boolean
   /** Why analysis is paused (e.g. the key was rejected), or null. */
   claudeError: string | null

@@ -103,34 +103,11 @@ export class Analyzer {
   }
 
   /** Starts (or stops, with null) analysing with this API key. */
-  /** True when there is no saved key and the `ant auth login` sign-in on this PC is used. */
-  usingSignIn = false
-
-  /**
-   * Starts analysing with this API key. Without one, falls back to the sign-in of the
-   * Anthropic CLI (`ant auth login`) when this PC has a working one; otherwise stops.
-   */
-  async configure(apiKey: string | null): Promise<void> {
+  configure(apiKey: string | null): void {
+    this.client = apiKey ? new Anthropic({ apiKey, maxRetries: 4 }) : null
     this.error = null
     this.failedAt.clear()
-    this.usingSignIn = false
-    if (apiKey) {
-      this.client = new Anthropic({ apiKey, maxRetries: 4 })
-      return
-    }
-    this.client = null
-    this.queue = []
-    // No key given: the SDK looks for the CLI's sign-in (or ANTHROPIC_API_KEY) by itself.
-    const client = new Anthropic({ maxRetries: 4 })
-    try {
-      await client.models.retrieve(MODEL)
-    } catch {
-      return
-    }
-    if (this.client !== null) return // A key was saved meanwhile.
-    this.client = client
-    this.usingSignIn = true
-    this.onChange()
+    if (!apiKey) this.queue = []
   }
 
   get enabled(): boolean {

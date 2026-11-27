@@ -52,7 +52,6 @@ export function SettingsDialog({
               placeholder="sk-ant-…"
               saved={settings.hasClaudeKey}
               error={settings.claudeError}
-              status={settings.claudeSignIn ? 'Using your Anthropic CLI sign-in' : null}
               linkText="Create a key in the Claude Console"
               linkUrl="https://console.anthropic.com/settings/keys"
               save={(value) => window.api.setClaudeKey(value)}
@@ -81,7 +80,6 @@ function SecretField({
   placeholder,
   saved,
   error,
-  status,
   linkText,
   linkUrl,
   save,
@@ -93,8 +91,6 @@ function SecretField({
   saved: boolean
   /** A problem with the saved value, shown under it. */
   error: string | null
-  /** Shown above the input when nothing is saved but something else is in use. */
-  status?: string | null
   linkText: string
   linkUrl: string
   save: (value: string | null) => Promise<AiSettings>
@@ -136,33 +132,26 @@ function SecretField({
           </Button>
         </div>
       ) : (
-        <>
-          {status && (
-            <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <Check className="size-4 text-live" /> {status}
-            </span>
-          )}
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              if (value.trim()) void run(value)
-            }}
-          >
-            <Input
-              id={id}
-              type="password"
-              autoComplete="off"
-              placeholder={placeholder}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-            />
-            <Button type="submit" disabled={busy || !value.trim()}>
-              {busy && <LoaderCircle className="animate-spin" />}
-              Save
-            </Button>
-          </form>
-        </>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (value.trim()) void run(value)
+          }}
+        >
+          <Input
+            id={id}
+            type="password"
+            autoComplete="off"
+            placeholder={placeholder}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+          <Button type="submit" disabled={busy || !value.trim()}>
+            {busy && <LoaderCircle className="animate-spin" />}
+            Save
+          </Button>
+        </form>
       )}
       {(failure ?? error) && (
         <p role="alert" className="text-sm text-destructive">

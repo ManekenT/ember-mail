@@ -14,7 +14,6 @@ export function registerIpc(mail: MailManager): void {
   const aiSettings = (): AiSettings => ({
     hasClaudeKey: getSecret('claudeKey') !== null,
     hasTodoistToken: getSecret('todoistToken') !== null,
-    claudeSignIn: mail.analyzer.usingSignIn,
     claudeError: mail.analyzer.error
   })
 
@@ -62,7 +61,7 @@ export function registerIpc(mail: MailManager): void {
     const value = key?.trim() || null
     if (value) await Analyzer.verifyKey(value)
     setSecret('claudeKey', value)
-    await mail.analyzer.configure(value)
+    mail.analyzer.configure(value)
     mail.analyzeInbox()
     return aiSettings()
   })

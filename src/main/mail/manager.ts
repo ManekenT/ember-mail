@@ -13,7 +13,7 @@ export class MailManager {
   readonly analyzer = new Analyzer(() => this.notifyChanged())
 
   constructor(private readonly getWindow: () => BrowserWindow | null) {
-    void this.analyzer.configure(getSecret('claudeKey'))
+    this.analyzer.configure(getSecret('claudeKey'))
   }
 
   /** Sends every inbox mail without an analysis to Claude. */
